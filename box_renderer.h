@@ -27,7 +27,7 @@ public:
 
     void draw_box_hp_name(ImDrawList* d, const PlayerVisuals& p,
                           const ColorSet& c, int idx, bool is_scoped,
-                          ImFont* font) {
+                          ImFont* font, float font_size) {
         float rmin_x = 1e9f, rmin_y = 1e9f, rmax_x = -1e9f, rmax_y = -1e9f;
         float avg_depth = 0;
         int cnt = 0;
@@ -191,7 +191,6 @@ private:
             break;
         }
 
-        // Apply manual offset
         nx += g_settings.name_offset_x;
         ny += g_settings.name_offset_y;
 

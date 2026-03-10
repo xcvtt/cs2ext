@@ -69,8 +69,6 @@ public:
         write(f, "depth_scale", g_settings.depth_scale);
         write(f, "glow_expand_outer", g_settings.glow_expand_outer);
         write(f, "glow_expand_inner", g_settings.glow_expand_inner);
-        write_arr(f, "limb_width_a", g_settings.limb_width_a, 15);
-        write_arr(f, "limb_width_b", g_settings.limb_width_b, 15);
 
         f << "\n[Misc]\n";
         write(f, "target_fps", g_settings.target_fps);
@@ -175,8 +173,6 @@ public:
         read(kv, "depth_scale", g_settings.depth_scale);
         read(kv, "glow_expand_outer", g_settings.glow_expand_outer);
         read(kv, "glow_expand_inner", g_settings.glow_expand_inner);
-        read_arr(kv, "limb_width_a", g_settings.limb_width_a, 15);
-        read_arr(kv, "limb_width_b", g_settings.limb_width_b, 15);
 
         read(kv, "target_fps", g_settings.target_fps);
         read(kv, "box_smoothing", g_settings.box_smoothing);

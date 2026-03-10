@@ -12,25 +12,24 @@ struct MenuSettings {
     bool draw_skeleton_wire = false;
     bool draw_spectators = true;
     bool draw_radar = true;
-    int chams_style = 2;
+    int chams_style = 0;
 
-    float target_fps = 240.0f;
+    float target_fps = 1000.0f;
 
-    float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.47f};
-    float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.86f};
+    float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.3f};
+    float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.35f};
     float enemy_glow[4]    = {1.00f, 0.20f, 0.20f, 0.10f};
-    float team_fill[4]     = {0.16f, 0.39f, 0.86f, 0.47f};
-    float team_outline[4]  = {0.24f, 0.51f, 1.00f, 0.86f};
+    float team_fill[4]     = {0.16f, 0.39f, 0.86f, 0.3f};
+    float team_outline[4]  = {0.24f, 0.51f, 1.00f, 0.35f};
     float team_glow[4]     = {0.20f, 0.39f, 1.00f, 0.10f};
 
+    // Simplified body tuning
     float body_width_scale = 1.0f;
-    float head_radius = 4.5f;
+    float head_radius = 6.0f;
     float depth_scale = 500.0f;
     float glow_expand_outer = 6.0f;
     float glow_expand_inner = 3.0f;
     float box_smoothing = 0.5f;
-    float limb_width_a[15] = {6, 7, 6.5f, 3.5f, 3, 3.5f, 3, 4.5f, 3.5f, 4.5f, 3.5f, 3, 3, 5, 5};
-    float limb_width_b[15] = {7, 6.5f, 7, 3, 2, 3, 2, 3.5f, 2.5f, 3.5f, 2.5f, 4, 4, 4.5f, 4.5f};
 
     bool menu_open = true;
 
@@ -57,9 +56,9 @@ struct MenuSettings {
     // Name ESP
     int name_position = 0;
     float name_offset_x = 0.0f;
-    float name_offset_y = -3.0f;
-    float name_color[4] = {1.0f, 1.0f, 1.0f, 0.94f};
-    float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.78f};
+    float name_offset_y = -10.0f;
+    float name_color[4] = {0.1f, 1.0f, 0.9f, 0.9f};
+    float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool name_shadow = true;
     float name_font_size = 13.0f;
 
@@ -83,7 +82,7 @@ struct MenuSettings {
     float crosshair_dot_size = 1.5f;
 
     // Menu window position
-    float menu_x = -1.0f;  // -1 = auto/default
+    float menu_x = -1.0f;
     float menu_y = -1.0f;
 
     // Key binds
@@ -91,7 +90,6 @@ struct MenuSettings {
     int key_master = VK_F2;
     int key_exit = VK_INSERT;
 
-    // Reset to defaults
     void reset() { *this = MenuSettings{}; }
 };
 

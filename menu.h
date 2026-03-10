@@ -93,6 +93,7 @@ public:
 
             ImGui::Checkbox("Teammates", &g_settings.draw_teammates);
             ImGui::Checkbox("Skeleton Wire", &g_settings.draw_skeleton_wire);
+
             ImGui::Separator();
             ImGui::Text("Chams:");
             ImGui::RadioButton("Filled", &g_settings.chams_style, 0);
@@ -222,36 +223,17 @@ public:
         }
 
         if (ImGui::CollapsingHeader("Body Tuning")) {
-            ImGui::SliderFloat("Width", &g_settings.body_width_scale, 0.3f, 3.0f);
-            ImGui::SliderFloat("Head", &g_settings.head_radius, 1, 10);
-            ImGui::SliderFloat("Depth", &g_settings.depth_scale, 100, 1500);
-            ImGui::SliderFloat("Glow Out", &g_settings.glow_expand_outer, 0, 15);
-            ImGui::SliderFloat("Glow In", &g_settings.glow_expand_inner, 0, 10);
-            ImGui::Separator();
-            static const char* n[] = {
-                "Neck>Sp1", "Sp1>Sp2", "Sp2>Pelv",
-                "L Arm", "L FArm", "R Arm", "R FArm",
-                "L Thigh", "L Shin", "R Thigh", "R Shin",
-                "L SBridge", "R SBridge", "L HBridge", "R HBridge"};
-            for (int i = 0; i < 15; i++) {
-                ImGui::PushID(i);
-                ImGui::Text("%-11s", n[i]);
-                ImGui::SameLine(120);
-                ImGui::SetNextItemWidth(65);
-                ImGui::DragFloat("##a", &g_settings.limb_width_a[i], 0.1f, 0.5f, 15);
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(65);
-                ImGui::DragFloat("##b", &g_settings.limb_width_b[i], 0.1f, 0.5f, 15);
-                ImGui::PopID();
-            }
+            ImGui::SliderFloat("Body Width", &g_settings.body_width_scale, 0.3f, 3.0f, "%.2f");
+            ImGui::SliderFloat("Head Size", &g_settings.head_radius, 1, 10, "%.1f");
+            ImGui::SliderFloat("Depth Scale", &g_settings.depth_scale, 100, 1500, "%.0f");
+            ImGui::SliderFloat("Glow Outer", &g_settings.glow_expand_outer, 0, 15, "%.1f");
+            ImGui::SliderFloat("Glow Inner", &g_settings.glow_expand_inner, 0, 10, "%.1f");
             if (ImGui::Button("Reset Body##body")) {
-                float a[] = {6, 7, 6.5f, 3.5f, 3, 3.5f, 3, 4.5f, 3.5f, 4.5f, 3.5f, 3, 3, 5, 5};
-                float b[] = {7, 6.5f, 7, 3, 2, 3, 2, 3.5f, 2.5f, 3.5f, 2.5f, 4, 4, 4.5f, 4.5f};
-                memcpy(g_settings.limb_width_a, a, sizeof(a));
-                memcpy(g_settings.limb_width_b, b, sizeof(b));
                 g_settings.body_width_scale = 1.0f;
-                g_settings.head_radius = 4.5f;
+                g_settings.head_radius = 5.0f;
                 g_settings.depth_scale = 500.0f;
+                g_settings.glow_expand_outer = 6.0f;
+                g_settings.glow_expand_inner = 3.0f;
             }
         }
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(cs2-overlay)
+project(cs2ext)
 
 set(CMAKE_CXX_STANDARD 20)
 

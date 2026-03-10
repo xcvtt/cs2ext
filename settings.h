@@ -15,7 +15,6 @@ struct MenuSettings {
     int chams_style = 2;
 
     float target_fps = 240.0f;
-    float esp_font_size = 13.0f;
 
     float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.47f};
     float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.86f};
@@ -51,6 +50,26 @@ struct MenuSettings {
     float box_padding_y = 5.0f;
     float box_corner_pct = 0.2f;
 
+    // Font
+    int esp_font_index = 0;
+    float esp_font_atlas_size = 20.0f;
+
+    // Name ESP
+    int name_position = 0;
+    float name_offset_x = 0.0f;
+    float name_offset_y = -3.0f;
+    float name_color[4] = {1.0f, 1.0f, 1.0f, 0.94f};
+    float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.78f};
+    bool name_shadow = true;
+    float name_font_size = 13.0f;
+
+    // Health text
+    float hp_text_color[4] = {1.0f, 1.0f, 1.0f, 0.86f};
+    float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.70f};
+    bool hp_text_shadow = true;
+    float hp_font_size = 13.0f;
+
+    // Crosshair
     bool crosshair_enabled = false;
     int crosshair_shape = 0;
     float crosshair_size = 5.0f;
@@ -63,19 +82,17 @@ struct MenuSettings {
     bool crosshair_dot = false;
     float crosshair_dot_size = 1.5f;
 
-    bool aim_enabled = false;
-    int aim_key = VK_XBUTTON2;
-    int aim_bone = 6;
-    float aim_fov = 100.0f;
-    bool aim_draw_fov = true;
-    float aim_fov_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
-    bool aim_rage = true;
-    float aim_smooth = 3.0f;
-    bool aim_teammates = false;
-    bool aim_auto_shoot = false;
-    bool aim_visible_only = false;
+    // Menu window position
+    float menu_x = -1.0f;  // -1 = auto/default
+    float menu_y = -1.0f;
 
-    bool aim_waiting_for_key = false;
+    // Key binds
+    int key_menu = VK_F1;
+    int key_master = VK_F2;
+    int key_exit = VK_INSERT;
+
+    // Reset to defaults
+    void reset() { *this = MenuSettings{}; }
 };
 
 inline MenuSettings g_settings;

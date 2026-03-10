@@ -22,6 +22,24 @@ public:
         write(f, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         write(f, "chams_style", g_settings.chams_style);
 
+        f << "\n[Font]\n";
+        write(f, "esp_font_index", g_settings.esp_font_index);
+
+        f << "\n[Name]\n";
+        write(f, "name_position", g_settings.name_position);
+        write(f, "name_offset_x", g_settings.name_offset_x);
+        write(f, "name_offset_y", g_settings.name_offset_y);
+        write_arr(f, "name_color", g_settings.name_color, 4);
+        write_arr(f, "name_shadow_color", g_settings.name_shadow_color, 4);
+        write(f, "name_shadow", g_settings.name_shadow);
+        write(f, "name_font_size", g_settings.name_font_size);
+
+        f << "\n[HealthText]\n";
+        write_arr(f, "hp_text_color", g_settings.hp_text_color, 4);
+        write_arr(f, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
+        write(f, "hp_text_shadow", g_settings.hp_text_shadow);
+        write(f, "hp_font_size", g_settings.hp_font_size);
+
         f << "\n[Spectators]\n";
         write(f, "draw_spectators", g_settings.draw_spectators);
 
@@ -57,7 +75,6 @@ public:
         f << "\n[Misc]\n";
         write(f, "target_fps", g_settings.target_fps);
         write(f, "box_smoothing", g_settings.box_smoothing);
-        write(f, "esp_font_size", g_settings.esp_font_size);
 
         f << "\n[Box]\n";
         write(f, "box_style", g_settings.box_style);
@@ -78,6 +95,15 @@ public:
         write_arr(f, "crosshair_outline_color", g_settings.crosshair_outline_color, 4);
         write(f, "crosshair_dot", g_settings.crosshair_dot);
         write(f, "crosshair_dot_size", g_settings.crosshair_dot_size);
+
+        f << "\n[Menu]\n";
+        write(f, "menu_x", g_settings.menu_x);
+        write(f, "menu_y", g_settings.menu_y);
+
+        f << "\n[KeyBinds]\n";
+        write(f, "key_menu", g_settings.key_menu);
+        write(f, "key_master", g_settings.key_master);
+        write(f, "key_exit", g_settings.key_exit);
 
         f.close();
         return true;
@@ -108,7 +134,24 @@ public:
         read(kv, "draw_teammates", g_settings.draw_teammates);
         read(kv, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         read(kv, "chams_style", g_settings.chams_style);
+
+        read(kv, "esp_font_index", g_settings.esp_font_index);
+
+        read(kv, "name_position", g_settings.name_position);
+        read(kv, "name_offset_x", g_settings.name_offset_x);
+        read(kv, "name_offset_y", g_settings.name_offset_y);
+        read_arr(kv, "name_color", g_settings.name_color, 4);
+        read_arr(kv, "name_shadow_color", g_settings.name_shadow_color, 4);
+        read(kv, "name_shadow", g_settings.name_shadow);
+        read(kv, "name_font_size", g_settings.name_font_size);
+
+        read_arr(kv, "hp_text_color", g_settings.hp_text_color, 4);
+        read_arr(kv, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
+        read(kv, "hp_text_shadow", g_settings.hp_text_shadow);
+        read(kv, "hp_font_size", g_settings.hp_font_size);
+
         read(kv, "draw_spectators", g_settings.draw_spectators);
+
         read(kv, "draw_radar", g_settings.draw_radar);
         read(kv, "radar_circle", g_settings.radar_circle);
         read(kv, "radar_rotate", g_settings.radar_rotate);
@@ -119,12 +162,14 @@ public:
         read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);
         read(kv, "radar_x", g_settings.radar_x);
         read(kv, "radar_y", g_settings.radar_y);
+
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
         read_arr(kv, "enemy_glow", g_settings.enemy_glow, 4);
         read_arr(kv, "team_fill", g_settings.team_fill, 4);
         read_arr(kv, "team_outline", g_settings.team_outline, 4);
         read_arr(kv, "team_glow", g_settings.team_glow, 4);
+
         read(kv, "body_width_scale", g_settings.body_width_scale);
         read(kv, "head_radius", g_settings.head_radius);
         read(kv, "depth_scale", g_settings.depth_scale);
@@ -132,14 +177,16 @@ public:
         read(kv, "glow_expand_inner", g_settings.glow_expand_inner);
         read_arr(kv, "limb_width_a", g_settings.limb_width_a, 15);
         read_arr(kv, "limb_width_b", g_settings.limb_width_b, 15);
+
         read(kv, "target_fps", g_settings.target_fps);
         read(kv, "box_smoothing", g_settings.box_smoothing);
-        read(kv, "esp_font_size", g_settings.esp_font_size);
+
         read(kv, "box_style", g_settings.box_style);
         read(kv, "box_thickness", g_settings.box_thickness);
         read(kv, "box_padding_x", g_settings.box_padding_x);
         read(kv, "box_padding_y", g_settings.box_padding_y);
         read(kv, "box_corner_pct", g_settings.box_corner_pct);
+
         read(kv, "crosshair_enabled", g_settings.crosshair_enabled);
         read(kv, "crosshair_shape", g_settings.crosshair_shape);
         read(kv, "crosshair_size", g_settings.crosshair_size);
@@ -151,6 +198,13 @@ public:
         read_arr(kv, "crosshair_outline_color", g_settings.crosshair_outline_color, 4);
         read(kv, "crosshair_dot", g_settings.crosshair_dot);
         read(kv, "crosshair_dot_size", g_settings.crosshair_dot_size);
+
+        read(kv, "menu_x", g_settings.menu_x);
+        read(kv, "menu_y", g_settings.menu_y);
+
+        read(kv, "key_menu", g_settings.key_menu);
+        read(kv, "key_master", g_settings.key_master);
+        read(kv, "key_exit", g_settings.key_exit);
 
         return true;
     }

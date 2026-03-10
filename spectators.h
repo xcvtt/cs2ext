@@ -7,9 +7,7 @@
 #include "offsets.h"
 #include "settings.h"
 #include "entity_utils.h"
-
-class Overlay;
-extern Overlay g_overlay;
+#include "overlay.h"
 
 class SpectatorList {
 public:
@@ -28,7 +26,6 @@ public:
                 local_controller + g_offsets.CCSPlayerController.m_hPawn);
         }
 
-        // Only iterate player slots (1-63) instead of all 4096 entries
         uintptr_t first_page = g_memory.read<uintptr_t>(
             entity_list + EntityList::PAGE_HEADER);
         if (!first_page) return;
@@ -105,7 +102,8 @@ public:
                     ImGuiWindowFlags_NoResize |
                     ImGuiWindowFlags_NoInputs;
 
-        ImFont* font = g_overlay.esp_font;
+        // Use fixed small spec_font
+        ImFont* font = g_overlay.spec_font;
         if (font) ImGui::PushFont(font);
 
         ImGui::Begin(title, nullptr, flags);

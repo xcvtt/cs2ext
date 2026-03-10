@@ -3,7 +3,10 @@
 #include <string>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
 #include <nlohmann/json.hpp>
+#include "memory.h"
 
 struct Offsets {
     struct {
@@ -37,6 +40,49 @@ struct Offsets {
     } C_BaseModelEntity;
 
     bool load(const std::string& offsets_path, const std::string& client_dll_path) {
+        // Check if offset files exist
+        if (!std::filesystem::exists(offsets_path) ||
+            !std::filesystem::exists(client_dll_path)) {
+            printf("[!] Offset files not found, running cs2-dumper...\n");
+            if (!run_dumper()) return false;
+        }
+
+        if (!parse_offsets(offsets_path, client_dll_path)) {
+            printf("[!] Failed to parse offsets. Running cs2-dumper...\n");
+            if (!run_dumper()) return false;
+            if (!parse_offsets(offsets_path, client_dll_path)) {
+                printf("[!] Still failed after re-dump.\n");
+                return false;
+            }
+        }
+
+        // Functional validation: actually try to read game data
+        auto result = functional_test();
+        if (result == TestResult::OFFSETS_WRONG) {
+            printf("[!] Offsets are outdated (can't read valid game data). Running cs2-dumper...\n");
+            if (!run_dumper()) return false;
+            if (!parse_offsets(offsets_path, client_dll_path)) return false;
+            result = functional_test();
+            if (result == TestResult::OFFSETS_WRONG) {
+                printf("[!] Offsets still invalid after re-dump. Game may have updated.\n");
+                return false;
+            }
+        }
+
+        if (result == TestResult::NO_PLAYERS) {
+            printf("[*] Offsets parsed OK but no players found (you may not be in a match)\n");
+            printf("[*] Proceeding — offsets will be validated when players are present\n");
+        } else {
+            printf("[+] Offsets validated: successfully read player data\n");
+        }
+
+        return true;
+    }
+
+private:
+    enum class TestResult { OK, NO_PLAYERS, OFFSETS_WRONG };
+
+    bool parse_offsets(const std::string& offsets_path, const std::string& client_dll_path) {
         try {
             nlohmann::json oj, cj;
             {
@@ -79,17 +125,159 @@ struct Offsets {
             C_BaseModelEntity.m_vecViewOffset =
                 cs["C_BaseModelEntity"]["fields"]["m_vecViewOffset"];
 
-            printf("[offsets] m_hPlayerPawn=0x%X m_hPawn=0x%X "
-                   "m_pObserverServices=0x%X m_hObserverTarget=0x%X\n",
-                   CCSPlayerController.m_hPlayerPawn, CCSPlayerController.m_hPawn,
-                   C_BasePlayerPawn.m_pObserverServices,
-                   CPlayer_ObserverServices.m_hObserverTarget);
-
             return true;
         } catch (const std::exception& e) {
-            printf("Offset error: %s\n", e.what());
+            printf("[!] Offset parse error: %s\n", e.what());
             return false;
         }
+    }
+
+    // Actually try to read game data to verify offsets work.
+    // This catches stale offsets that parse fine but point to wrong memory.
+    TestResult functional_test() {
+        uintptr_t client_base = g_memory.get_client_base();
+        if (!client_base) {
+            printf("[!] client_base is 0\n");
+            return TestResult::OFFSETS_WRONG;
+        }
+
+        // Test 1: Can we read the entity list pointer?
+        uintptr_t entity_list = g_memory.read<uintptr_t>(client_base + client.dwEntityList);
+        if (!entity_list) {
+            printf("[!] entity_list is null (offset 0x%X)\n", client.dwEntityList);
+            return TestResult::OFFSETS_WRONG;
+        }
+
+        // Test 2: Can we read the first page of the entity list?
+        uintptr_t first_page = g_memory.read<uintptr_t>(entity_list + 16);
+        if (!first_page) {
+            // Could be no players loaded yet (main menu)
+            return TestResult::NO_PLAYERS;
+        }
+
+        // Test 3: Try to find at least one valid player with a sane team number
+        int valid_players = 0;
+        int bogus_reads = 0;
+
+        for (int i = 1; i < 64; i++) {
+            uintptr_t controller = g_memory.read<uintptr_t>(first_page + 112 * (i & 0x1FF));
+            if (!controller) continue;
+
+            // Try to read the pawn handle
+            uint32_t pawn_handle = g_memory.read<uint32_t>(
+                controller + CCSPlayerController.m_hPawn);
+            if (!pawn_handle) {
+                pawn_handle = g_memory.read<uint32_t>(
+                    controller + CCSPlayerController.m_hPlayerPawn);
+            }
+            if (!pawn_handle) continue;
+
+            // Resolve pawn
+            uintptr_t pawn_page = g_memory.read<uintptr_t>(
+                entity_list + 8 * ((pawn_handle & 0x7FFF) >> 9) + 16);
+            if (!pawn_page) continue;
+
+            uintptr_t pawn = g_memory.read<uintptr_t>(
+                pawn_page + 112 * (pawn_handle & 0x1FF));
+            if (!pawn) continue;
+
+            // Read team and health — these must make sense
+            int team = g_memory.read<int>(pawn + C_BaseEntity.m_iTeamNum);
+            int health = g_memory.read<int>(pawn + C_BaseEntity.m_iHealth);
+
+            // Team should be 0-3 (none, spec, T, CT)
+            if (team >= 0 && team <= 3) {
+                // Health should be 0-100 for dead/alive, or -1/weird for invalid
+                if (health >= 0 && health <= 100) {
+                    valid_players++;
+                } else if (health > 100 || health < -1) {
+                    bogus_reads++;
+                }
+            } else {
+                bogus_reads++;
+            }
+        }
+
+        if (valid_players > 0 && bogus_reads <= valid_players) {
+            printf("[+] Found %d valid players in functional test\n", valid_players);
+            return TestResult::OK;
+        }
+
+        if (valid_players == 0 && bogus_reads == 0) {
+            // No controllers found at all — might just be main menu
+            return TestResult::NO_PLAYERS;
+        }
+
+        // We found controllers but data doesn't make sense
+        printf("[!] Functional test failed: %d valid, %d bogus reads\n",
+               valid_players, bogus_reads);
+        return TestResult::OFFSETS_WRONG;
+    }
+
+    bool run_dumper() {
+        const char* dumper = "cs2-dumper.exe";
+
+        if (!std::filesystem::exists(dumper)) {
+            printf("[!] %s not found in current directory\n", dumper);
+            printf("[!] Download from https://github.com/a2x/cs2-dumper/releases\n");
+            printf("[!] Place next to this executable and restart.\n");
+            return false;
+        }
+
+        printf("[*] Running %s...\n", dumper);
+        int ret = system(dumper);
+        if (ret != 0) {
+            printf("[!] cs2-dumper failed with code %d\n", ret);
+            return false;
+        }
+
+        // cs2-dumper outputs to output/ directory
+        const char* dump_dir = "output";
+        if (!std::filesystem::exists(dump_dir)) {
+            printf("[!] cs2-dumper output directory '%s' not found\n", dump_dir);
+            return false;
+        }
+
+        std::filesystem::create_directories("offsets");
+
+        // Copy only the two files we need
+        struct FileCopy {
+            const char* src;
+            const char* dst;
+        };
+        static const FileCopy needed[] = {
+            {"output/offsets.json",    "offsets/offsets.json"},
+            {"output/client_dll.json", "offsets/client_dll.json"},
+        };
+
+        bool ok = true;
+        for (const auto& fc : needed) {
+            if (std::filesystem::exists(fc.src)) {
+                try {
+                    // Remove destination first to guarantee overwrite
+                    if (std::filesystem::exists(fc.dst))
+                        std::filesystem::remove(fc.dst);
+                    std::filesystem::copy_file(fc.src, fc.dst);
+                    printf("[+] Copied %s -> %s\n", fc.src, fc.dst);
+                } catch (const std::exception& e) {
+                    printf("[!] Failed to copy %s: %s\n", fc.src, e.what());
+                    ok = false;
+                }
+            } else {
+                printf("[!] Expected file %s not found in dumper output\n", fc.src);
+                ok = false;
+            }
+        }
+
+        // Clean up entire output directory
+        try {
+            std::filesystem::remove_all(dump_dir);
+            printf("[+] Cleaned up %s/\n", dump_dir);
+        } catch (const std::exception& e) {
+            printf("[!] Failed to clean up %s: %s\n", dump_dir, e.what());
+        }
+
+        return ok;
     }
 };
 

@@ -32,8 +32,7 @@ public:
             g_settings.draw_health_text || g_settings.draw_name) {
             // Access font from overlay
             extern Overlay g_overlay;
-            box_renderer.draw_box_hp_name(draw, p, c, idx, is_scoped,
-                                          g_overlay.esp_font, g_settings.esp_font_size);
+            box_renderer.draw_box_hp_name(draw, p, c, idx, is_scoped, g_overlay.esp_font);
             }
     }
 

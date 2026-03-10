@@ -6,19 +6,19 @@
 #include <cstdio>
 #include "types.h"
 #include "settings.h"
+#include "chams_renderer.h"
 
 enum class BoxStyle { CORNERS, FULL, DASHED };
+enum class NamePosition { TOP = 0, BOTTOM, LEFT, RIGHT };
 
 struct SmoothedBox {
     float min_x = 0, min_y = 0, max_x = 0, max_y = 0;
     bool initialized = false;
 };
 
-static constexpr int EntityList_MAX_PLAYERS = 64;
-
 class BoxRenderer {
 public:
-    SmoothedBox smoothed_boxes[EntityList_MAX_PLAYERS];
+    SmoothedBox smoothed_boxes[64];
 
     void reset_smoothing() {
         for (auto& b : smoothed_boxes)
@@ -27,7 +27,7 @@ public:
 
     void draw_box_hp_name(ImDrawList* d, const PlayerVisuals& p,
                           const ColorSet& c, int idx, bool is_scoped,
-                          ImFont* font, float font_size) {
+                          ImFont* font) {
         float rmin_x = 1e9f, rmin_y = 1e9f, rmax_x = -1e9f, rmax_y = -1e9f;
         float avg_depth = 0;
         int cnt = 0;
@@ -70,89 +70,136 @@ public:
         float x0 = sb.min_x, y0 = sb.min_y, x1 = sb.max_x, y1 = sb.max_y;
         float box_thick = g_settings.box_thickness;
 
-        if (g_settings.draw_box) {
-            BoxStyle style = static_cast<BoxStyle>(g_settings.box_style);
-            ImU32 bg = IM_COL32(0, 0, 0, 80);
+        if (g_settings.draw_box)
+            draw_box(d, x0, y0, x1, y1, box_thick, c);
 
-            switch (style) {
-            case BoxStyle::CORNERS: {
-                float w = x1 - x0, h = y1 - y0;
-                float corner = std::min(w, h) * g_settings.box_corner_pct;
-                auto corners = [&](ImU32 col, float t) {
-                    d->AddLine({x0, y0}, {x0 + corner, y0}, col, t);
-                    d->AddLine({x0, y0}, {x0, y0 + corner}, col, t);
-                    d->AddLine({x1, y0}, {x1 - corner, y0}, col, t);
-                    d->AddLine({x1, y0}, {x1, y0 + corner}, col, t);
-                    d->AddLine({x0, y1}, {x0 + corner, y1}, col, t);
-                    d->AddLine({x0, y1}, {x0, y1 - corner}, col, t);
-                    d->AddLine({x1, y1}, {x1 - corner, y1}, col, t);
-                    d->AddLine({x1, y1}, {x1, y1 - corner}, col, t);
-                };
-                corners(bg, box_thick + 2);
-                corners(c.outline, box_thick);
-                break;
-            }
-            case BoxStyle::FULL: {
-                d->AddRect({x0 - 1, y0 - 1}, {x1 + 1, y1 + 1}, bg, 0, 0, box_thick + 2);
-                d->AddRect({x0, y0}, {x1, y1}, c.outline, 0, 0, box_thick);
-                break;
-            }
-            case BoxStyle::DASHED: {
-                float dash = 8.0f;
-                float gap = 5.0f;
-                auto dashed_line = [&](ImVec2 a, ImVec2 b, ImU32 col, float thick) {
-                    float dx = b.x - a.x, dy = b.y - a.y;
-                    float len = sqrtf(dx * dx + dy * dy);
-                    if (len < 1) return;
-                    float nx = dx / len, ny = dy / len;
-                    float pos = 0;
-                    while (pos < len) {
-                        float end = std::min(pos + dash, len);
-                        d->AddLine({a.x + nx * pos, a.y + ny * pos},
-                                   {a.x + nx * end, a.y + ny * end}, col, thick);
-                        pos = end + gap;
-                    }
-                };
-                dashed_line({x0, y0}, {x1, y0}, bg, box_thick + 2);
-                dashed_line({x1, y0}, {x1, y1}, bg, box_thick + 2);
-                dashed_line({x1, y1}, {x0, y1}, bg, box_thick + 2);
-                dashed_line({x0, y1}, {x0, y0}, bg, box_thick + 2);
-                dashed_line({x0, y0}, {x1, y0}, c.outline, box_thick);
-                dashed_line({x1, y0}, {x1, y1}, c.outline, box_thick);
-                dashed_line({x1, y1}, {x0, y1}, c.outline, box_thick);
-                dashed_line({x0, y1}, {x0, y0}, c.outline, box_thick);
-                break;
-            }
-            }
+        if (g_settings.draw_healthbar)
+            draw_healthbar(d, x0, y0, x1, y1, p.health, font,
+                           g_settings.hp_font_size);
+
+        if (g_settings.draw_name && p.name[0] && font)
+            draw_name(d, x0, y0, x1, y1, p.name, font);
+    }
+
+private:
+    void draw_box(ImDrawList* d, float x0, float y0, float x1, float y1,
+                  float box_thick, const ColorSet& c) {
+        BoxStyle style = static_cast<BoxStyle>(g_settings.box_style);
+        ImU32 bg = IM_COL32(0, 0, 0, 80);
+
+        switch (style) {
+        case BoxStyle::CORNERS: {
+            float w = x1 - x0, h = y1 - y0;
+            float corner = std::min(w, h) * g_settings.box_corner_pct;
+            auto corners = [&](ImU32 col, float t) {
+                d->AddLine({x0, y0}, {x0 + corner, y0}, col, t);
+                d->AddLine({x0, y0}, {x0, y0 + corner}, col, t);
+                d->AddLine({x1, y0}, {x1 - corner, y0}, col, t);
+                d->AddLine({x1, y0}, {x1, y0 + corner}, col, t);
+                d->AddLine({x0, y1}, {x0 + corner, y1}, col, t);
+                d->AddLine({x0, y1}, {x0, y1 - corner}, col, t);
+                d->AddLine({x1, y1}, {x1 - corner, y1}, col, t);
+                d->AddLine({x1, y1}, {x1, y1 - corner}, col, t);
+            };
+            corners(bg, box_thick + 2);
+            corners(c.outline, box_thick);
+            break;
+        }
+        case BoxStyle::FULL:
+            d->AddRect({x0 - 1, y0 - 1}, {x1 + 1, y1 + 1}, bg, 0, 0, box_thick + 2);
+            d->AddRect({x0, y0}, {x1, y1}, c.outline, 0, 0, box_thick);
+            break;
+        case BoxStyle::DASHED: {
+            float dash = 8.0f, gap = 5.0f;
+            auto dashed_line = [&](ImVec2 a, ImVec2 b, ImU32 col, float thick) {
+                float dx = b.x - a.x, dy = b.y - a.y;
+                float len = sqrtf(dx * dx + dy * dy);
+                if (len < 1) return;
+                float nx = dx / len, ny = dy / len;
+                float pos = 0;
+                while (pos < len) {
+                    float end = std::min(pos + dash, len);
+                    d->AddLine({a.x + nx * pos, a.y + ny * pos},
+                               {a.x + nx * end, a.y + ny * end}, col, thick);
+                    pos = end + gap;
+                }
+            };
+            dashed_line({x0, y0}, {x1, y0}, bg, box_thick + 2);
+            dashed_line({x1, y0}, {x1, y1}, bg, box_thick + 2);
+            dashed_line({x1, y1}, {x0, y1}, bg, box_thick + 2);
+            dashed_line({x0, y1}, {x0, y0}, bg, box_thick + 2);
+            dashed_line({x0, y0}, {x1, y0}, c.outline, box_thick);
+            dashed_line({x1, y0}, {x1, y1}, c.outline, box_thick);
+            dashed_line({x1, y1}, {x0, y1}, c.outline, box_thick);
+            dashed_line({x0, y1}, {x0, y0}, c.outline, box_thick);
+            break;
+        }
+        }
+    }
+
+    void draw_healthbar(ImDrawList* d, float x0, float y0, float x1, float y1,
+                        int health, ImFont* font, float hp_font_size) {
+        float bw = 3, bx = x0 - bw - 4, bh = y1 - y0;
+        float hp = std::clamp(health / 100.0f, 0.0f, 1.0f);
+        float filled = bh * hp;
+        d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, IM_COL32(0, 0, 0, 140));
+        d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(30, 30, 30, 180));
+        uint8_t r = (uint8_t)(255 * (1 - hp)), g = (uint8_t)(255 * hp);
+        d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, IM_COL32(r, g, 0, 230));
+
+        if (g_settings.draw_health_text && health < 100 && font) {
+            char txt[8];
+            snprintf(txt, 8, "%d", health);
+            ImVec2 ts = font->CalcTextSizeA(hp_font_size, FLT_MAX, 0, txt);
+            float tx = bx - ts.x - 2;
+            float ty = y0 + (bh - filled) - ts.y * 0.5f;
+
+            ImU32 shadow_col = float4_to_col(g_settings.hp_text_shadow_color);
+            ImU32 text_col = float4_to_col(g_settings.hp_text_color);
+
+            if (g_settings.hp_text_shadow)
+                d->AddText(font, hp_font_size, {tx + 1, ty + 1}, shadow_col, txt);
+            d->AddText(font, hp_font_size, {tx, ty}, text_col, txt);
+        }
+    }
+
+    void draw_name(ImDrawList* d, float x0, float y0, float x1, float y1,
+                   const char* name, ImFont* font) {
+        float name_fs = g_settings.name_font_size;
+        ImVec2 ts = font->CalcTextSizeA(name_fs, FLT_MAX, 0,
+                                        name, name + strlen(name));
+
+        NamePosition pos = static_cast<NamePosition>(g_settings.name_position);
+        float nx = 0, ny = 0;
+
+        switch (pos) {
+        case NamePosition::TOP:
+            nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
+            ny = y0 - ts.y - 3;
+            break;
+        case NamePosition::BOTTOM:
+            nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
+            ny = y1 + 3;
+            break;
+        case NamePosition::LEFT:
+            nx = x0 - ts.x - 5;
+            ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
+            break;
+        case NamePosition::RIGHT:
+            nx = x1 + 5;
+            ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
+            break;
         }
 
-        if (g_settings.draw_healthbar) {
-            float bw = 3, bx = x0 - bw - 4, bh = y1 - y0;
-            float hp = std::clamp(p.health / 100.0f, 0.0f, 1.0f);
-            float filled = bh * hp;
-            d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, IM_COL32(0, 0, 0, 140));
-            d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(30, 30, 30, 180));
-            uint8_t r = (uint8_t)(255 * (1 - hp)), g = (uint8_t)(255 * hp);
-            d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, IM_COL32(r, g, 0, 230));
+        // Apply manual offset
+        nx += g_settings.name_offset_x;
+        ny += g_settings.name_offset_y;
 
-            if (g_settings.draw_health_text && p.health < 100 && font) {
-                char txt[8];
-                snprintf(txt, 8, "%d", p.health);
-                ImVec2 ts = font->CalcTextSizeA(font_size, FLT_MAX, 0, txt);
-                float tx = bx - ts.x - 2;
-                float ty = y0 + (bh - filled) - ts.y * 0.5f;
-                d->AddText(font, font_size, {tx + 1, ty + 1}, IM_COL32(0, 0, 0, 180), txt);
-                d->AddText(font, font_size, {tx, ty}, IM_COL32(255, 255, 255, 220), txt);
-            }
-        }
+        ImU32 shadow_col = float4_to_col(g_settings.name_shadow_color);
+        ImU32 text_col = float4_to_col(g_settings.name_color);
 
-        if (g_settings.draw_name && p.name[0] && font) {
-            ImVec2 ts = font->CalcTextSizeA(font_size, FLT_MAX, 0,
-                                            p.name, p.name + strlen(p.name));
-            float nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
-            float ny = y0 - ts.y - 3;
-            d->AddText(font, font_size, {nx + 1, ny + 1}, IM_COL32(0, 0, 0, 200), p.name);
-            d->AddText(font, font_size, {nx, ny}, IM_COL32(255, 255, 255, 240), p.name);
-        }
+        if (g_settings.name_shadow)
+            d->AddText(font, name_fs, {nx + 1, ny + 1}, shadow_col, name);
+        d->AddText(font, name_fs, {nx, ny}, text_col, name);
     }
 };

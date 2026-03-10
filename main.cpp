@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <cstdio>
 #include <chrono>
+#include <csignal>
 #include <imgui.h>
 
 #include "types.h"
@@ -18,44 +19,74 @@
 #include "radar.h"
 
 static const char* CONFIG_PATH = "cs2esp.ini";
+static volatile bool g_running = true;
+
+static void save_and_exit() {
+    Config::save(CONFIG_PATH);
+    printf("[+] Config saved\n");
+}
+
+static BOOL WINAPI console_handler(DWORD event) {
+    if (event == CTRL_C_EVENT || event == CTRL_CLOSE_EVENT ||
+        event == CTRL_BREAK_EVENT || event == CTRL_LOGOFF_EVENT ||
+        event == CTRL_SHUTDOWN_EVENT) {
+        save_and_exit();
+        g_running = false;
+        return TRUE;
+    }
+    return FALSE;
+}
 
 int main() {
+    // Register graceful shutdown handlers
+    SetConsoleCtrlHandler(console_handler, TRUE);
+    std::atexit(save_and_exit);
+
     if (Config::load(CONFIG_PATH))
         printf("[+] Config loaded\n");
 
-    if (!g_offsets.load("offsets/offsets.json", "offsets/client_dll.json")) {
-        printf("Failed to load offsets\n");
-        return 1;
-    }
     if (!g_memory.attach(L"cs2.exe")) {
         printf("cs2.exe not found\n");
         return 1;
     }
     printf("[+] Attached (client.dll @ 0x%llX)\n", g_memory.get_client_base());
 
+    if (!g_offsets.load("offsets/offsets.json", "offsets/client_dll.json")) {
+        printf("Failed to load offsets\n");
+        return 1;
+    }
+
     if (!g_overlay.init(L"Counter-Strike 2")) {
         printf("Overlay failed\n");
         return 1;
     }
-    printf("[+] F1 = menu | F2 = master toggle | INSERT = exit\n");
+    printf("[+] %s = menu | %s = master toggle | %s = exit\n",
+           vk_name(g_settings.key_menu),
+           vk_name(g_settings.key_master),
+           vk_name(g_settings.key_exit));
 
     EntityReader entity_reader;
     bool prev_menu = g_settings.menu_open;
     int spec_tick = 0;
 
-    while (!(GetAsyncKeyState(VK_INSERT) & 1)) {
+    g_overlay.set_interactive(g_settings.menu_open);
+
+    while (g_running) {
         auto frame_start = std::chrono::high_resolution_clock::now();
 
-        // Input
-        if (GetAsyncKeyState(VK_F1) & 1) g_menu.toggle();
-        if (GetAsyncKeyState(VK_F2) & 1) g_settings.master_switch = !g_settings.master_switch;
+        // Check exit key
+        if (GetAsyncKeyState(g_settings.key_exit) & 1) break;
+
+        // Input with customizable keys
+        if (GetAsyncKeyState(g_settings.key_menu) & 1) g_menu.toggle();
+        if (GetAsyncKeyState(g_settings.key_master) & 1)
+            g_settings.master_switch = !g_settings.master_switch;
 
         if (g_settings.menu_open != prev_menu) {
-            g_overlay.update_clickthrough(g_settings.menu_open);
+            g_overlay.set_interactive(g_settings.menu_open);
             prev_menu = g_settings.menu_open;
         }
 
-        // Begin frame
         if (!g_overlay.begin_frame()) break;
         g_menu.render();
 
@@ -65,10 +96,8 @@ int main() {
             continue;
         }
 
-        // Read game state
         FrameState state = entity_reader.read_frame(g_overlay.width, g_overlay.height);
 
-        // Spectator update (throttled)
         if (state.entity_list) {
             if (++spec_tick >= 15) {
                 spec_tick = 0;
@@ -77,7 +106,6 @@ int main() {
             }
         }
 
-        // Draw ESP
         ImDrawList* draw = ImGui::GetBackgroundDrawList();
 
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
@@ -87,15 +115,12 @@ int main() {
                               g_overlay.width, g_overlay.height, i, state.local.is_scoped);
         }
 
-        // Draw radar
         g_radar.draw(draw, state.radar_players, EntityList::MAX_PLAYERS,
                      state.local.x, state.local.y, state.local.yaw, state.local.team,
                      g_overlay.width, g_overlay.height);
 
-        // Draw spectators
         g_spectators.draw(g_overlay.width);
 
-        // Draw crosshair
         ImDrawList* fg = ImGui::GetForegroundDrawList();
         Crosshair::Config xhair_cfg = {
             g_settings.crosshair_enabled && g_settings.master_switch,
@@ -116,9 +141,7 @@ int main() {
         limit_frame(frame_start, g_settings.target_fps);
     }
 
-    Config::save(CONFIG_PATH);
-    printf("[+] Config saved\n");
-
+    // save_and_exit() is called via atexit
     g_overlay.shutdown();
     return 0;
 }

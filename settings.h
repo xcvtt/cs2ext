@@ -72,7 +72,7 @@ struct MenuSettings {
 
     // Spectator list position
     float spec_x = -1.0f;  // -1 = auto (right side)
-    float spec_y = 10.0f;
+    float spec_y = 30.0f;
 
     // Crosshair
     bool crosshair_enabled = false;

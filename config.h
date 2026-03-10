@@ -103,6 +103,11 @@ public:
         write(f, "key_master", g_settings.key_master);
         write(f, "key_exit", g_settings.key_exit);
 
+        f << "\n[MenuStyle]\n";
+        write_arr(f, "menu_accent_color", g_settings.menu_accent_color, 4);
+        write(f, "menu_bg_alpha", g_settings.menu_bg_alpha);
+        write_arr(f, "menu_border_color", g_settings.menu_border_color, 4);
+
         f.close();
         return true;
     }
@@ -201,6 +206,10 @@ public:
         read(kv, "key_menu", g_settings.key_menu);
         read(kv, "key_master", g_settings.key_master);
         read(kv, "key_exit", g_settings.key_exit);
+
+        read_arr(kv, "menu_accent_color", g_settings.menu_accent_color, 4);
+        read(kv, "menu_bg_alpha", g_settings.menu_bg_alpha);
+        read_arr(kv, "menu_border_color", g_settings.menu_border_color, 4);
 
         return true;
     }

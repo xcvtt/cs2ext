@@ -78,7 +78,7 @@ public:
                            g_settings.hp_font_size);
 
         if (g_settings.draw_name && p.name[0] && font)
-            draw_name(d, x0, y0, x1, y1, p.name, font);
+            draw_name(d, x0, y0, x1, y1, p.name, font, avg_depth);
     }
 
 private:
@@ -164,35 +164,45 @@ private:
     }
 
     void draw_name(ImDrawList* d, float x0, float y0, float x1, float y1,
-                   const char* name, ImFont* font) {
+                   const char* name, ImFont* font, float avg_depth) {
         float name_fs = g_settings.name_font_size;
         ImVec2 ts = font->CalcTextSizeA(name_fs, FLT_MAX, 0,
                                         name, name + strlen(name));
 
         NamePosition pos = static_cast<NamePosition>(g_settings.name_position);
+
+        // Scale the offset by depth so it's consistent at all distances
+        float depth_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
+        // Clamp so it doesn't go crazy at very close range
+        depth_factor = std::clamp(depth_factor, 0.3f, 3.0f);
+
+        float base_gap = 3.0f * depth_factor;
+        float offset_x = g_settings.name_offset_x * depth_factor;
+        float offset_y = g_settings.name_offset_y * depth_factor;
+
         float nx = 0, ny = 0;
 
         switch (pos) {
-        case NamePosition::TOP:
-            nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
-            ny = y0 - ts.y - 3;
-            break;
-        case NamePosition::BOTTOM:
-            nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
-            ny = y1 + 3;
-            break;
-        case NamePosition::LEFT:
-            nx = x0 - ts.x - 5;
-            ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
-            break;
-        case NamePosition::RIGHT:
-            nx = x1 + 5;
-            ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
-            break;
+            case NamePosition::TOP:
+                nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
+                ny = y0 - ts.y - base_gap;
+                break;
+            case NamePosition::BOTTOM:
+                nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
+                ny = y1 + base_gap;
+                break;
+            case NamePosition::LEFT:
+                nx = x0 - ts.x - base_gap * 1.5f;
+                ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
+                break;
+            case NamePosition::RIGHT:
+                nx = x1 + base_gap * 1.5f;
+                ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
+                break;
         }
 
-        nx += g_settings.name_offset_x;
-        ny += g_settings.name_offset_y;
+        nx += offset_x;
+        ny += offset_y;
 
         ImU32 shadow_col = float4_to_col(g_settings.name_shadow_color);
         ImU32 text_col = float4_to_col(g_settings.name_color);

@@ -23,7 +23,6 @@ struct MenuSettings {
     float team_outline[4]  = {0.24f, 0.51f, 1.00f, 0.35f};
     float team_glow[4]     = {0.20f, 0.39f, 1.00f, 0.10f};
 
-    // Simplified body tuning
     float body_width_scale = 1.0f;
     float head_radius = 6.0f;
     float depth_scale = 500.0f;
@@ -50,13 +49,13 @@ struct MenuSettings {
     float box_corner_pct = 0.2f;
 
     // Font
-    int esp_font_index = 0;
+    int esp_font_index = 1;
     float esp_font_atlas_size = 20.0f;
 
     // Name ESP
     int name_position = 0;
     float name_offset_x = 0.0f;
-    float name_offset_y = -10.0f;
+    float name_offset_y = -3.0f;  // base gap above box, scaled with depth
     float name_color[4] = {0.1f, 1.0f, 0.9f, 0.9f};
     float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool name_shadow = true;
@@ -81,9 +80,16 @@ struct MenuSettings {
     bool crosshair_dot = false;
     float crosshair_dot_size = 1.5f;
 
-    // Menu window position
+    // Menu
     float menu_x = -1.0f;
     float menu_y = -1.0f;
+    int menu_tab = 0;
+
+    // Menu style
+    float menu_accent_color[4] = {0.0f, 1.0f, 0.65f, 1.0f};  // cyber green
+    float menu_bg_alpha = 0.92f;
+    float menu_border_color[4] = {0.0f, 1.0f, 0.65f, 0.3f};
+    int menu_style_preset = 0;  // 0=hacker, 1=dark, 2=classic
 
     // Key binds
     int key_menu = VK_F1;

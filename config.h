@@ -104,6 +104,7 @@ public:
             kv[key] = val;
         }
 
+        // ESP
         read(kv, "master_switch", g_settings.master_switch);
         read(kv, "esp_enabled", g_settings.esp_enabled);
         read(kv, "draw_box", g_settings.draw_box);
@@ -113,13 +114,22 @@ public:
         read(kv, "draw_teammates", g_settings.draw_teammates);
         read(kv, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         read(kv, "chams_style", g_settings.chams_style);
+
+        // Spectators
         read(kv, "draw_spectators", g_settings.draw_spectators);
+
+        // Radar
         read(kv, "draw_radar", g_settings.draw_radar);
+        read(kv, "radar_circle", g_settings.radar_circle);
+        read(kv, "radar_rotate", g_settings.radar_rotate);
+        read(kv, "radar_rings", g_settings.radar_rings);
         read(kv, "radar_names", g_settings.radar_names);
         read(kv, "radar_size", g_settings.radar_size);
         read(kv, "radar_range", g_settings.radar_range);
+        read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);
         read(kv, "radar_x", g_settings.radar_x);
         read(kv, "radar_y", g_settings.radar_y);
+
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
         read_arr(kv, "enemy_glow", g_settings.enemy_glow, 4);

@@ -2,18 +2,8 @@
 #include <imgui.h>
 #include <cmath>
 #include <algorithm>
-
-struct MenuSettings;
-extern MenuSettings g_settings;
-ImU32 float4_to_col(const float c[4]);
-
-struct RadarPlayer {
-    float x, y, z;
-    int team;
-    int health;
-    bool valid;
-    char name[128];
-};
+#include "types.h"
+#include "settings.h"
 
 class Radar {
 public:
@@ -41,12 +31,10 @@ public:
             draw->AddRect({rx, ry}, {rx + size, ry + size}, border, 4.0f, 0, 1.5f);
         }
 
-        // Cross
         ImU32 cross_col = IM_COL32(255, 255, 255, (int)(alpha * 50));
         draw->AddLine({cx - 5, cy}, {cx + 5, cy}, cross_col);
         draw->AddLine({cx, cy - 5}, {cx, cy + 5}, cross_col);
 
-        // 4 range rings
         if (g_settings.radar_rings) {
             ImU32 ring_col = IM_COL32(255, 255, 255, (int)(alpha * 25));
             for (float f : {0.25f, 0.5f, 0.75f, 1.0f})
@@ -72,7 +60,7 @@ public:
 
             float rot_x, rot_y;
             if (g_settings.radar_rotate) {
-                rot_x =  dx * cos_y + dy * sin_y;
+                rot_x = dx * cos_y + dy * sin_y;
                 rot_y = -dx * sin_y + dy * cos_y;
             } else {
                 rot_x = dx;
@@ -98,10 +86,9 @@ public:
             }
 
             ImU32 col = enemy
-                ? float4_to_col(g_settings.enemy_outline)
-                : float4_to_col(g_settings.team_outline);
+                            ? float4_to_col(g_settings.enemy_outline)
+                            : float4_to_col(g_settings.team_outline);
 
-            // Distance-based dot size
             float world_dist = sqrtf(dx * dx + dy * dy);
             float dot_r = std::clamp(5.0f - world_dist / range * 2.0f, 2.5f, 5.0f);
 
@@ -120,7 +107,6 @@ public:
             }
         }
 
-        // Local player: small triangle
         float ts = 3.5f;
         if (g_settings.radar_rotate) {
             draw->AddTriangleFilled(

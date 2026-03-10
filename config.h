@@ -3,11 +3,7 @@
 #include <string>
 #include <sstream>
 #include <unordered_map>
-
-#include "menu.h"
-
-struct MenuSettings;
-extern MenuSettings g_settings;
+#include "settings.h"
 
 class Config {
 public:
@@ -83,7 +79,6 @@ public:
         write(f, "crosshair_dot", g_settings.crosshair_dot);
         write(f, "crosshair_dot_size", g_settings.crosshair_dot_size);
 
-
         f.close();
         return true;
     }
@@ -104,7 +99,6 @@ public:
             kv[key] = val;
         }
 
-        // ESP
         read(kv, "master_switch", g_settings.master_switch);
         read(kv, "esp_enabled", g_settings.esp_enabled);
         read(kv, "draw_box", g_settings.draw_box);
@@ -114,11 +108,7 @@ public:
         read(kv, "draw_teammates", g_settings.draw_teammates);
         read(kv, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         read(kv, "chams_style", g_settings.chams_style);
-
-        // Spectators
         read(kv, "draw_spectators", g_settings.draw_spectators);
-
-        // Radar
         read(kv, "draw_radar", g_settings.draw_radar);
         read(kv, "radar_circle", g_settings.radar_circle);
         read(kv, "radar_rotate", g_settings.radar_rotate);
@@ -129,7 +119,6 @@ public:
         read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);
         read(kv, "radar_x", g_settings.radar_x);
         read(kv, "radar_y", g_settings.radar_y);
-
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
         read_arr(kv, "enemy_glow", g_settings.enemy_glow, 4);
@@ -143,17 +132,14 @@ public:
         read(kv, "glow_expand_inner", g_settings.glow_expand_inner);
         read_arr(kv, "limb_width_a", g_settings.limb_width_a, 15);
         read_arr(kv, "limb_width_b", g_settings.limb_width_b, 15);
-
         read(kv, "target_fps", g_settings.target_fps);
         read(kv, "box_smoothing", g_settings.box_smoothing);
         read(kv, "esp_font_size", g_settings.esp_font_size);
-
         read(kv, "box_style", g_settings.box_style);
         read(kv, "box_thickness", g_settings.box_thickness);
         read(kv, "box_padding_x", g_settings.box_padding_x);
         read(kv, "box_padding_y", g_settings.box_padding_y);
         read(kv, "box_corner_pct", g_settings.box_corner_pct);
-
         read(kv, "crosshair_enabled", g_settings.crosshair_enabled);
         read(kv, "crosshair_shape", g_settings.crosshair_shape);
         read(kv, "crosshair_size", g_settings.crosshair_size);

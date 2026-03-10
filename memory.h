@@ -5,9 +5,31 @@
 
 class Memory {
 public:
-    HANDLE process = nullptr;
-    DWORD pid = 0;
-    uintptr_t client_base = 0;
+    Memory() = default;
+    ~Memory() { close(); }
+
+    Memory(const Memory&) = delete;
+    Memory& operator=(const Memory&) = delete;
+
+    Memory(Memory&& other) noexcept
+        : process(other.process), pid(other.pid), client_base(other.client_base) {
+        other.process = nullptr;
+        other.pid = 0;
+        other.client_base = 0;
+    }
+
+    Memory& operator=(Memory&& other) noexcept {
+        if (this != &other) {
+            close();
+            process = other.process;
+            pid = other.pid;
+            client_base = other.client_base;
+            other.process = nullptr;
+            other.pid = 0;
+            other.client_base = 0;
+        }
+        return *this;
+    }
 
     bool attach(const wchar_t* process_name) {
         pid = find_process(process_name);
@@ -20,7 +42,16 @@ public:
         return client_base != 0;
     }
 
-    template<typename T>
+    void close() {
+        if (process) {
+            CloseHandle(process);
+            process = nullptr;
+        }
+        pid = 0;
+        client_base = 0;
+    }
+
+    template <typename T>
     T read(uintptr_t address) const {
         T value{};
         ReadProcessMemory(process, (LPCVOID)address, &value, sizeof(T), nullptr);
@@ -37,14 +68,14 @@ public:
         return GetExitCodeProcess(process, &code) && code == STILL_ACTIVE;
     }
 
-    ~Memory() {
-        if (process) {
-            CloseHandle(process);
-            process = nullptr;
-        }
-    }
+    uintptr_t get_client_base() const { return client_base; }
+    DWORD get_pid() const { return pid; }
 
 private:
+    HANDLE process = nullptr;
+    DWORD pid = 0;
+    uintptr_t client_base = 0;
+
     static DWORD find_process(const wchar_t* name) {
         DWORD result = 0;
         HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);

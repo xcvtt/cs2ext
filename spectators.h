@@ -3,12 +3,10 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-
 #include "memory.h"
 #include "offsets.h"
-
-struct MenuSettings;
-extern MenuSettings g_settings;
+#include "settings.h"
+#include "entity_utils.h"
 
 class Overlay;
 extern Overlay g_overlay;
@@ -30,73 +28,58 @@ public:
                 local_controller + g_offsets.CCSPlayerController.m_hPawn);
         }
 
-        for (int page = 0; page < 8; page++) {
-            uintptr_t list_entry = g_memory.read<uintptr_t>(entity_list + 8 * page + 16);
-            if (!list_entry) continue;
+        // Only iterate player slots (1-63) instead of all 4096 entries
+        uintptr_t first_page = g_memory.read<uintptr_t>(
+            entity_list + EntityList::PAGE_HEADER);
+        if (!first_page) return;
 
-            for (int idx = 0; idx < 512; idx++) {
-                uintptr_t controller = g_memory.read<uintptr_t>(list_entry + 112 * idx);
-                if (!controller || controller == local_controller) continue;
+        for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
+            uintptr_t controller = g_memory.read<uintptr_t>(
+                first_page + EntityList::ENTRY_STRIDE * (i & EntityList::INDEX_MASK));
+            if (!controller || controller == local_controller) continue;
 
-                char name[128]{};
-                uintptr_t name_ptr = g_memory.read<uintptr_t>(
-                    controller + g_offsets.CCSPlayerController.m_sSanitizedPlayerName);
-                if (name_ptr)
-                    g_memory.read_raw(name_ptr, name, 127);
-                name[127] = 0;
-                if (!name[0]) continue;
-                for (int c = 0; name[c]; c++)
-                    if ((unsigned char)name[c] < 0x20) name[c] = ' ';
+            char name[128]{};
+            read_player_name(controller, name, sizeof(name));
+            if (!name[0]) continue;
 
-                uint32_t pawn_handle = g_memory.read<uint32_t>(
-                    controller + g_offsets.CCSPlayerController.m_hPawn);
-                if (!pawn_handle)
-                    pawn_handle = g_memory.read<uint32_t>(
-                        controller + g_offsets.CCSPlayerController.m_hPlayerPawn);
-                if (!pawn_handle) continue;
+            uint32_t pawn_handle = get_pawn_handle(controller);
+            if (!pawn_handle) continue;
 
-                uint32_t entry_idx = (pawn_handle & 0x7FFF) >> 9;
-                uintptr_t pawn_entry = g_memory.read<uintptr_t>(
-                    entity_list + 8 * entry_idx + 16);
-                if (!pawn_entry) continue;
+            uintptr_t pawn = EntityList::resolve_handle(entity_list, pawn_handle);
+            if (!pawn || pawn == local_pawn) continue;
 
-                uintptr_t pawn = g_memory.read<uintptr_t>(
-                    pawn_entry + 112 * (pawn_handle & 0x1FF));
-                if (!pawn || pawn == local_pawn) continue;
+            int health = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iHealth);
+            int team = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iTeamNum);
+            if (health > 0 && team != 1) continue;
 
-                int health = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iHealth);
-                int team = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iTeamNum);
-                if (health > 0 && team != 1) continue;
+            uintptr_t obs_svc = g_memory.read<uintptr_t>(
+                pawn + g_offsets.C_BasePlayerPawn.m_pObserverServices);
+            if (!obs_svc) continue;
 
-                uintptr_t obs_svc = g_memory.read<uintptr_t>(
-                    pawn + g_offsets.C_BasePlayerPawn.m_pObserverServices);
-                if (!obs_svc) continue;
+            uint32_t obs_target = g_memory.read<uint32_t>(
+                obs_svc + g_offsets.CPlayer_ObserverServices.m_hObserverTarget);
+            if (!obs_target || obs_target == 0xFFFFFFFF) continue;
 
-                uint32_t obs_target = g_memory.read<uint32_t>(
-                    obs_svc + g_offsets.CPlayer_ObserverServices.m_hObserverTarget);
-                if (!obs_target || obs_target == 0xFFFFFFFF) continue;
-
-                bool match = false;
-                if (local_handle_pawn && obs_target == local_handle_pawn)
+            bool match = false;
+            if (local_handle_pawn && obs_target == local_handle_pawn)
+                match = true;
+            if (!match && local_handle_player && obs_target == local_handle_player)
+                match = true;
+            if (!match) {
+                uintptr_t resolved = EntityList::resolve_handle(entity_list, obs_target);
+                if (resolved == local_pawn)
                     match = true;
-                if (!match && local_handle_player && obs_target == local_handle_player)
-                    match = true;
-                if (!match) {
-                    uint32_t oe = (obs_target & 0x7FFF) >> 9;
-                    uintptr_t oel = g_memory.read<uintptr_t>(entity_list + 8 * oe + 16);
-                    if (oel) {
-                        uintptr_t op = g_memory.read<uintptr_t>(oel + 112 * (obs_target & 0x1FF));
-                        if (op == local_pawn) match = true;
+            }
+
+            if (match) {
+                bool dup = false;
+                for (const auto& s : spectators)
+                    if (s == name) {
+                        dup = true;
+                        break;
                     }
-                }
-
-                if (match) {
-                    bool dup = false;
-                    for (const auto& s : spectators)
-                        if (s == name) { dup = true; break; }
-                    if (!dup)
-                        spectators.push_back(name);
-                }
+                if (!dup)
+                    spectators.push_back(name);
             }
         }
     }
@@ -122,7 +105,6 @@ public:
                     ImGuiWindowFlags_NoResize |
                     ImGuiWindowFlags_NoInputs;
 
-        // Push UTF-8 font for entire window
         ImFont* font = g_overlay.esp_font;
         if (font) ImGui::PushFont(font);
 

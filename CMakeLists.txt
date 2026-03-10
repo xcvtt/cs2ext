@@ -3,7 +3,6 @@ project(cs2ext)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Fetch dependencies
 include(FetchContent)
 
 FetchContent_Declare(
@@ -19,7 +18,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(imgui json)
 
-# ImGui library
 add_library(imgui_lib
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -30,5 +28,19 @@ add_library(imgui_lib
 )
 target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
 
+
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} imgui_lib nlohmann_json::nlohmann_json d3d11 d3dcompiler dwmapi)
+
+target_link_options(cs2ext PRIVATE
+        -static-libgcc
+        -static-libstdc++
+        -static -lpthread
+        -Wl,--gc-sections
+        -s
+)
+target_compile_options(cs2ext PRIVATE
+        -Os
+        -ffunction-sections
+        -fdata-sections
+)

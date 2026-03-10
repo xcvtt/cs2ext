@@ -84,22 +84,6 @@ struct MenuSettings {
     float crosshair_outline_color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     bool crosshair_dot = false;
     float crosshair_dot_size = 1.5f;
-
-    // Aimbot
-    bool aim_enabled = false;
-    int aim_key = VK_XBUTTON2;     // Mouse5
-    int aim_bone = 6;              // BONE_HEAD
-    float aim_fov = 100.0f;
-    bool aim_draw_fov = true;
-    float aim_fov_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
-    bool aim_rage = true;
-    float aim_smooth = 3.0f;
-    bool aim_teammates = false;
-    bool aim_auto_shoot = false;
-    bool aim_visible_only = false;
-
-    // Key bind state
-    bool aim_waiting_for_key = false;
 };
 
 inline MenuSettings g_settings;

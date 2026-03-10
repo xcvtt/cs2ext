@@ -87,7 +87,7 @@ public:
         float sy = g_settings.spec_y;
         if (sx < 0) sx = (float)screen_w - window_w - 10.0f;
 
-        ImGui::SetNextWindowPos({sx, sy}, ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos({sx, sy}, ImGuiCond_Always);
         ImGui::SetNextWindowSizeConstraints({window_w, 0}, {window_w, 1000});
         ImGui::SetNextWindowBgAlpha(0.7f);
 

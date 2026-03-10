@@ -27,7 +27,6 @@ public:
         g_settings.menu_x = pos.x;
         g_settings.menu_y = pos.y;
 
-        // Title bar
         ImGui::PushFont(g_overlay.menu_title_font);
         ImVec4 accent = {g_settings.menu_accent_color[0], g_settings.menu_accent_color[1],
                          g_settings.menu_accent_color[2], g_settings.menu_accent_color[3]};
@@ -41,33 +40,12 @@ public:
 
         ImGui::Separator();
 
-        // Tabs
-        if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_None)) {
-            if (ImGui::BeginTabItem("Main")) {
-                g_settings.menu_tab = 0;
-                render_tab_main();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("ESP")) {
-                g_settings.menu_tab = 1;
-                render_tab_esp();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Radar")) {
-                g_settings.menu_tab = 2;
-                render_tab_radar();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Misc")) {
-                g_settings.menu_tab = 3;
-                render_tab_misc();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Menu")) {
-                g_settings.menu_tab = 4;
-                render_tab_menu_style();
-                ImGui::EndTabItem();
-            }
+        if (ImGui::BeginTabBar("##tabs")) {
+            if (ImGui::BeginTabItem("Main"))  { render_tab_main();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("ESP"))   { render_tab_esp();   ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Radar")) { render_tab_radar(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Misc"))  { render_tab_misc();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Menu"))  { render_tab_menu_style(); ImGui::EndTabItem(); }
             ImGui::EndTabBar();
         }
 
@@ -81,7 +59,6 @@ private:
     bool bind_waiting_exit = false;
     bool reset_popup_open = false;
 
-    // ===== TAB: MAIN =====
     void render_tab_main() {
         ImGui::Spacing();
         ImGui::Text("Status:");
@@ -94,7 +71,6 @@ private:
         ImGui::Separator();
         ImGui::Text("Key Binds");
         ImGui::Spacing();
-
         render_key_bind("Menu Toggle", g_settings.key_menu, bind_waiting_menu);
         render_key_bind("Master Toggle", g_settings.key_master, bind_waiting_master);
         render_key_bind("Exit", g_settings.key_exit, bind_waiting_exit);
@@ -105,7 +81,6 @@ private:
 
         ImGui::Separator();
         if (ImGui::Button("Reset All Settings")) reset_popup_open = true;
-
         if (reset_popup_open) {
             ImGui::OpenPopup("Reset?##confirm");
             reset_popup_open = false;
@@ -125,13 +100,11 @@ private:
         }
     }
 
-    // ===== TAB: ESP =====
     void render_tab_esp() {
         ImGui::Spacing();
         ImGui::Checkbox("ESP Enabled", &g_settings.esp_enabled);
         ImGui::Separator();
 
-        // Chams style
         ImGui::Text("Chams Style:");
         ImGui::RadioButton("Filled", &g_settings.chams_style, 0); ImGui::SameLine();
         ImGui::RadioButton("Wire", &g_settings.chams_style, 1); ImGui::SameLine();
@@ -140,10 +113,8 @@ private:
 
         ImGui::Checkbox("Skeleton Wire", &g_settings.draw_skeleton_wire);
         ImGui::Checkbox("Teammates", &g_settings.draw_teammates);
-
         ImGui::Separator();
 
-        // Box
         ImGui::Checkbox("Box", &g_settings.draw_box);
         if (g_settings.draw_box) {
             ImGui::Indent();
@@ -158,10 +129,8 @@ private:
             ImGui::SliderFloat("Box Smooth", &g_settings.box_smoothing, 0, 0.95f, "%.2f");
             ImGui::Unindent();
         }
-
         ImGui::Separator();
 
-        // Health
         ImGui::Checkbox("Health Bar", &g_settings.draw_healthbar);
         ImGui::Checkbox("Health Text", &g_settings.draw_health_text);
         if (g_settings.draw_health_text) {
@@ -176,10 +145,8 @@ private:
                                   ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
             ImGui::Unindent();
         }
-
         ImGui::Separator();
 
-        // Name
         ImGui::Checkbox("Name", &g_settings.draw_name);
         if (g_settings.draw_name) {
             ImGui::Indent();
@@ -199,16 +166,12 @@ private:
                                   ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
             ImGui::Unindent();
         }
-
         ImGui::Separator();
 
-        // Font selector
         ImGui::Text("ESP Font:");
-        render_font_selector();
-
+        render_esp_font_selector();
         ImGui::Separator();
 
-        // Body tuning
         ImGui::Text("Body Tuning");
         ImGui::SliderFloat("Body Width", &g_settings.body_width_scale, 0.3f, 3.0f, "%.2f");
         ImGui::SliderFloat("Head Size", &g_settings.head_radius, 1, 10, "%.1f");
@@ -222,11 +185,9 @@ private:
             g_settings.glow_expand_outer = 6.0f;
             g_settings.glow_expand_inner = 3.0f;
         }
-
         ImGui::Separator();
 
-        // Colors
-        ImGui::Text("Colors");
+        ImGui::Text("ESP Colors");
         ImGui::Columns(2, nullptr, false);
         ImGui::Text("Enemy");
         ImGui::ColorEdit4("Fill##ef", g_settings.enemy_fill, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs);
@@ -240,7 +201,6 @@ private:
         ImGui::Columns(1);
     }
 
-    // ===== TAB: RADAR =====
     void render_tab_radar() {
         ImGui::Spacing();
         ImGui::Checkbox("Show Radar", &g_settings.draw_radar);
@@ -255,11 +215,31 @@ private:
         ImGui::SliderFloat("Opacity", &g_settings.radar_bg_alpha, 0.1f, 1.0f, "%.2f");
         ImGui::DragFloat("Position X", &g_settings.radar_x, 1, 0, 3000);
         ImGui::DragFloat("Position Y", &g_settings.radar_y, 1, 0, 2000);
+
+        ImGui::Separator();
+        ImGui::Text("Radar Colors");
+        ImGui::ColorEdit4("Enemy##re", g_settings.radar_enemy_color,
+                          ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit4("Team##rt", g_settings.radar_team_color,
+                          ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs);
     }
 
-    // ===== TAB: MISC =====
     void render_tab_misc() {
         ImGui::Spacing();
+
+        // Spectator list
+        ImGui::Text("Spectator List");
+        ImGui::Checkbox("Show Spectators", &g_settings.draw_spectators);
+        if (g_settings.draw_spectators) {
+            ImGui::Indent();
+            ImGui::DragFloat("Spec X##sx", &g_settings.spec_x, 1, -1, 3000, "%.0f");
+            ImGui::SameLine();
+            if (ImGui::Button("Auto##specauto")) g_settings.spec_x = -1.0f;
+            ImGui::DragFloat("Spec Y##sy", &g_settings.spec_y, 1, 0, 2000, "%.0f");
+            ImGui::Unindent();
+        }
+
+        ImGui::Separator();
 
         // Crosshair
         ImGui::Text("Crosshair");
@@ -290,14 +270,12 @@ private:
                 ImGui::ColorEdit4("OL Color##xolc", g_settings.crosshair_outline_color, ImGuiColorEditFlags_NoInputs);
                 ImGui::SliderFloat("OL Width##xolt", &g_settings.crosshair_outline_thickness, 1, 3, "%.0f");
             }
-
             if (g_settings.crosshair_shape != 3) {
                 ImGui::Checkbox("Center Dot##xdot", &g_settings.crosshair_dot);
                 if (g_settings.crosshair_dot)
                     ImGui::SliderFloat("Dot Size##xds", &g_settings.crosshair_dot_size, 1, 4, "%.0f");
             }
 
-            // Preview
             ImGui::Separator();
             ImVec2 pp = ImGui::GetCursorScreenPos();
             float psz = 60;
@@ -309,8 +287,6 @@ private:
             ImDrawListFlags old = dl->Flags;
             dl->Flags &= ~ImDrawListFlags_AntiAliasedLines;
             dl->Flags &= ~ImDrawListFlags_AntiAliasedFill;
-            float pcx = floorf(pp.x + psz * 0.5f) + 0.5f;
-            float pcy = floorf(pp.y + psz * 0.5f) + 0.5f;
             Crosshair::Config prev_cfg = {
                 true, g_settings.crosshair_shape, g_settings.crosshair_size,
                 g_settings.crosshair_gap, g_settings.crosshair_thickness,
@@ -319,105 +295,91 @@ private:
                 float4_to_col(g_settings.crosshair_outline_color),
                 g_settings.crosshair_dot, g_settings.crosshair_dot_size,
             };
+            float pcx = floorf(pp.x + psz * 0.5f) + 0.5f;
+            float pcy = floorf(pp.y + psz * 0.5f) + 0.5f;
             g_crosshair.draw_preview(dl, pcx, pcy, prev_cfg);
             dl->Flags = old;
             dl->PopClipRect();
             ImGui::Unindent();
         }
-
-        ImGui::Separator();
-
-        // Spectator list
-        ImGui::Text("Spectator List");
-        ImGui::Checkbox("Show Spectators", &g_settings.draw_spectators);
     }
 
-    // ===== TAB: MENU STYLE =====
     void render_tab_menu_style() {
         ImGui::Spacing();
         ImGui::Text("Menu Appearance");
         ImGui::Separator();
 
-        bool changed = false;
-        changed |= ImGui::ColorEdit4("Accent Color", g_settings.menu_accent_color,
-                                      ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
-        changed |= ImGui::ColorEdit4("Border Color", g_settings.menu_border_color,
-                                      ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
-        changed |= ImGui::SliderFloat("BG Opacity", &g_settings.menu_bg_alpha, 0.3f, 1.0f, "%.2f");
+        bool style_changed = false;
+        style_changed |= ImGui::ColorEdit4("Accent Color", g_settings.menu_accent_color,
+                                            ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        style_changed |= ImGui::ColorEdit4("Border Color", g_settings.menu_border_color,
+                                            ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        style_changed |= ImGui::SliderFloat("BG Opacity", &g_settings.menu_bg_alpha, 0.3f, 1.0f, "%.2f");
 
         ImGui::Separator();
         ImGui::Text("Presets:");
         if (ImGui::Button("Cyber Green", {120, 0})) {
-            float c[] = {0.0f, 1.0f, 0.65f, 1.0f};
-            float b[] = {0.0f, 1.0f, 0.65f, 0.3f};
+            float c[] = {0, 1, 0.65f, 1}; float b[] = {0, 1, 0.65f, 0.3f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.92f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.92f; style_changed = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Blood Red", {120, 0})) {
-            float c[] = {1.0f, 0.2f, 0.15f, 1.0f};
-            float b[] = {1.0f, 0.2f, 0.15f, 0.3f};
+            float c[] = {1, 0.2f, 0.15f, 1}; float b[] = {1, 0.2f, 0.15f, 0.3f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.92f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.92f; style_changed = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Electric Blue", {120, 0})) {
-            float c[] = {0.2f, 0.5f, 1.0f, 1.0f};
-            float b[] = {0.2f, 0.5f, 1.0f, 0.3f};
+            float c[] = {0.2f, 0.5f, 1, 1}; float b[] = {0.2f, 0.5f, 1, 0.3f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.92f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.92f; style_changed = true;
         }
-
         if (ImGui::Button("Purple Haze", {120, 0})) {
-            float c[] = {0.7f, 0.3f, 1.0f, 1.0f};
-            float b[] = {0.7f, 0.3f, 1.0f, 0.3f};
+            float c[] = {0.7f, 0.3f, 1, 1}; float b[] = {0.7f, 0.3f, 1, 0.3f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.90f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.90f; style_changed = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Gold", {120, 0})) {
-            float c[] = {1.0f, 0.8f, 0.2f, 1.0f};
-            float b[] = {1.0f, 0.8f, 0.2f, 0.3f};
+            float c[] = {1, 0.8f, 0.2f, 1}; float b[] = {1, 0.8f, 0.2f, 0.3f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.92f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.92f; style_changed = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Minimal", {120, 0})) {
-            float c[] = {0.7f, 0.7f, 0.7f, 1.0f};
-            float b[] = {0.4f, 0.4f, 0.4f, 0.2f};
+            float c[] = {0.7f, 0.7f, 0.7f, 1}; float b[] = {0.4f, 0.4f, 0.4f, 0.2f};
             memcpy(g_settings.menu_accent_color, c, 16);
             memcpy(g_settings.menu_border_color, b, 16);
-            g_settings.menu_bg_alpha = 0.88f;
-            changed = true;
+            g_settings.menu_bg_alpha = 0.88f; style_changed = true;
         }
 
-        if (changed)
+        if (style_changed)
             g_overlay.apply_menu_style();
+
+        ImGui::Separator();
+
+        // Menu font
+        ImGui::Text("Menu Font");
+        render_menu_font_selector();
+
+        if (ImGui::SliderFloat("Menu Font Size", &g_settings.menu_font_size, 10.0f, 22.0f, "%.0f"))
+            g_overlay.font_rebuild_needed = true;
     }
 
     // ===== HELPERS =====
     void render_key_bind(const char* label, int& key, bool& waiting) {
         ImGui::Text("%s:", label);
         ImGui::SameLine(160);
-        char btn_label[64];
-        if (waiting)
-            snprintf(btn_label, sizeof(btn_label), "[...]##%s", label);
-        else
-            snprintf(btn_label, sizeof(btn_label), "%s##%s", vk_name(key), label);
-
-        if (ImGui::Button(btn_label, {100, 0}))
-            waiting = true;
-
+        char btn[64];
+        if (waiting) snprintf(btn, sizeof(btn), "[...]##%s", label);
+        else snprintf(btn, sizeof(btn), "%s##%s", vk_name(key), label);
+        if (ImGui::Button(btn, {100, 0})) waiting = true;
         if (waiting) {
             int pressed = scan_any_key();
             if (pressed > 0) { key = pressed; waiting = false; }
@@ -425,30 +387,26 @@ private:
         }
     }
 
-    void render_font_selector() {
+    void render_esp_font_selector() {
         auto& fonts = g_overlay.available_fonts;
         if (fonts.empty()) { ImGui::Text("No fonts"); return; }
-
         const char* preview = (g_settings.esp_font_index >= 0 &&
                                g_settings.esp_font_index < (int)fonts.size())
-                                  ? fonts[g_settings.esp_font_index].display_name.c_str()
-                                  : "Unknown";
-
-        if (ImGui::BeginCombo("##fontcombo", preview)) {
+                                  ? fonts[g_settings.esp_font_index].display_name.c_str() : "?";
+        if (ImGui::BeginCombo("##espfont", preview)) {
             for (int i = 0; i < (int)fonts.size(); i++) {
-                bool selected = (g_settings.esp_font_index == i);
-                if (ImGui::Selectable(fonts[i].display_name.c_str(), selected)) {
+                bool sel = (g_settings.esp_font_index == i);
+                if (ImGui::Selectable(fonts[i].display_name.c_str(), sel)) {
                     if (g_settings.esp_font_index != i) {
                         g_settings.esp_font_index = i;
                         g_overlay.font_rebuild_needed = true;
                     }
                 }
-                if (selected) ImGui::SetItemDefaultFocus();
+                if (sel) ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
-
-        // Preview
+        // Small preview
         if (g_overlay.esp_font) {
             ImGui::PushFont(g_overlay.esp_font);
             float sz = g_settings.name_font_size;
@@ -461,6 +419,27 @@ private:
                         float4_to_col(g_settings.name_color), sample);
             ImGui::Dummy({ts.x + 8, ts.y + 6});
             ImGui::PopFont();
+        }
+    }
+
+    void render_menu_font_selector() {
+        auto& fonts = g_overlay.menu_fonts;
+        if (fonts.empty()) { ImGui::Text("No fonts"); return; }
+        const char* preview = (g_settings.menu_font_index >= 0 &&
+                               g_settings.menu_font_index < (int)fonts.size())
+                                  ? fonts[g_settings.menu_font_index].display_name.c_str() : "?";
+        if (ImGui::BeginCombo("##menufont", preview)) {
+            for (int i = 0; i < (int)fonts.size(); i++) {
+                bool sel = (g_settings.menu_font_index == i);
+                if (ImGui::Selectable(fonts[i].display_name.c_str(), sel)) {
+                    if (g_settings.menu_font_index != i) {
+                        g_settings.menu_font_index = i;
+                        g_overlay.font_rebuild_needed = true;
+                    }
+                }
+                if (sel) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
         }
     }
 };

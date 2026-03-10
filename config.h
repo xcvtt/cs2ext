@@ -42,6 +42,8 @@ public:
 
         f << "\n[Spectators]\n";
         write(f, "draw_spectators", g_settings.draw_spectators);
+        write(f, "spec_x", g_settings.spec_x);
+        write(f, "spec_y", g_settings.spec_y);
 
         f << "\n[Radar]\n";
         write(f, "draw_radar", g_settings.draw_radar);
@@ -54,6 +56,8 @@ public:
         write(f, "radar_bg_alpha", g_settings.radar_bg_alpha);
         write(f, "radar_x", g_settings.radar_x);
         write(f, "radar_y", g_settings.radar_y);
+        write_arr(f, "radar_enemy_color", g_settings.radar_enemy_color, 4);
+        write_arr(f, "radar_team_color", g_settings.radar_team_color, 4);
 
         f << "\n[Colors]\n";
         write_arr(f, "enemy_fill", g_settings.enemy_fill, 4);
@@ -107,6 +111,8 @@ public:
         write_arr(f, "menu_accent_color", g_settings.menu_accent_color, 4);
         write(f, "menu_bg_alpha", g_settings.menu_bg_alpha);
         write_arr(f, "menu_border_color", g_settings.menu_border_color, 4);
+        write(f, "menu_font_index", g_settings.menu_font_index);
+        write(f, "menu_font_size", g_settings.menu_font_size);
 
         f.close();
         return true;
@@ -154,6 +160,8 @@ public:
         read(kv, "hp_font_size", g_settings.hp_font_size);
 
         read(kv, "draw_spectators", g_settings.draw_spectators);
+        read(kv, "spec_x", g_settings.spec_x);
+        read(kv, "spec_y", g_settings.spec_y);
 
         read(kv, "draw_radar", g_settings.draw_radar);
         read(kv, "radar_circle", g_settings.radar_circle);
@@ -165,6 +173,8 @@ public:
         read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);
         read(kv, "radar_x", g_settings.radar_x);
         read(kv, "radar_y", g_settings.radar_y);
+        read_arr(kv, "radar_enemy_color", g_settings.radar_enemy_color, 4);
+        read_arr(kv, "radar_team_color", g_settings.radar_team_color, 4);
 
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
@@ -210,6 +220,8 @@ public:
         read_arr(kv, "menu_accent_color", g_settings.menu_accent_color, 4);
         read(kv, "menu_bg_alpha", g_settings.menu_bg_alpha);
         read_arr(kv, "menu_border_color", g_settings.menu_border_color, 4);
+        read(kv, "menu_font_index", g_settings.menu_font_index);
+        read(kv, "menu_font_size", g_settings.menu_font_size);
 
         return true;
     }

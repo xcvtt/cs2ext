@@ -58,25 +58,18 @@ public:
             if (!obs_target || obs_target == 0xFFFFFFFF) continue;
 
             bool match = false;
-            if (local_handle_pawn && obs_target == local_handle_pawn)
-                match = true;
-            if (!match && local_handle_player && obs_target == local_handle_player)
-                match = true;
+            if (local_handle_pawn && obs_target == local_handle_pawn) match = true;
+            if (!match && local_handle_player && obs_target == local_handle_player) match = true;
             if (!match) {
                 uintptr_t resolved = EntityList::resolve_handle(entity_list, obs_target);
-                if (resolved == local_pawn)
-                    match = true;
+                if (resolved == local_pawn) match = true;
             }
 
             if (match) {
                 bool dup = false;
                 for (const auto& s : spectators)
-                    if (s == name) {
-                        dup = true;
-                        break;
-                    }
-                if (!dup)
-                    spectators.push_back(name);
+                    if (s == name) { dup = true; break; }
+                if (!dup) spectators.push_back(name);
             }
         }
     }
@@ -89,9 +82,12 @@ public:
 
         float window_w = 280.0f;
 
-        ImGui::SetNextWindowPos(
-            {(float)screen_w - window_w - 10.0f, 10.0f},
-            ImGuiCond_FirstUseEver);
+        // Use configurable position, default to right side
+        float sx = g_settings.spec_x;
+        float sy = g_settings.spec_y;
+        if (sx < 0) sx = (float)screen_w - window_w - 10.0f;
+
+        ImGui::SetNextWindowPos({sx, sy}, ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSizeConstraints({window_w, 0}, {window_w, 1000});
         ImGui::SetNextWindowBgAlpha(0.7f);
 
@@ -102,7 +98,6 @@ public:
                     ImGuiWindowFlags_NoResize |
                     ImGuiWindowFlags_NoInputs;
 
-        // Use fixed small spec_font
         ImFont* font = g_overlay.spec_font;
         if (font) ImGui::PushFont(font);
 

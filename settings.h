@@ -32,6 +32,7 @@ struct MenuSettings {
 
     bool menu_open = true;
 
+    // Radar
     float radar_size = 200.0f;
     float radar_range = 2500.0f;
     float radar_x = 10.0f;
@@ -41,6 +42,8 @@ struct MenuSettings {
     bool radar_rings = true;
     bool radar_names = false;
     float radar_bg_alpha = 0.85f;
+    float radar_enemy_color[4] = {1.00f, 0.30f, 0.30f, 0.90f};
+    float radar_team_color[4]  = {0.30f, 0.55f, 1.00f, 0.90f};
 
     int box_style = 0;
     float box_thickness = 1.5f;
@@ -48,14 +51,14 @@ struct MenuSettings {
     float box_padding_y = 5.0f;
     float box_corner_pct = 0.2f;
 
-    // Font
-    int esp_font_index = 1;
+    // ESP Font
+    int esp_font_index = 5;
     float esp_font_atlas_size = 20.0f;
 
     // Name ESP
     int name_position = 0;
     float name_offset_x = 0.0f;
-    float name_offset_y = -3.0f;  // base gap above box, scaled with depth
+    float name_offset_y = -3.0f;
     float name_color[4] = {0.1f, 1.0f, 0.9f, 0.9f};
     float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool name_shadow = true;
@@ -66,6 +69,10 @@ struct MenuSettings {
     float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.70f};
     bool hp_text_shadow = true;
     float hp_font_size = 13.0f;
+
+    // Spectator list position
+    float spec_x = -1.0f;  // -1 = auto (right side)
+    float spec_y = 10.0f;
 
     // Crosshair
     bool crosshair_enabled = false;
@@ -86,10 +93,13 @@ struct MenuSettings {
     int menu_tab = 0;
 
     // Menu style
-    float menu_accent_color[4] = {0.0f, 1.0f, 0.65f, 1.0f};  // cyber green
+    float menu_accent_color[4] = {0.0f, 1.0f, 0.65f, 1.0f};
     float menu_bg_alpha = 0.92f;
     float menu_border_color[4] = {0.0f, 1.0f, 0.65f, 0.3f};
-    int menu_style_preset = 0;  // 0=hacker, 1=dark, 2=classic
+
+    // Menu font
+    int menu_font_index = 1;    // index into menu font list
+    float menu_font_size = 15.0f;
 
     // Key binds
     int key_menu = VK_F1;

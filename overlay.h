@@ -30,7 +30,8 @@ public:
     ImFont* menu_font = nullptr;
     ImFont* menu_title_font = nullptr;
 
-    std::vector<FontEntry> available_fonts;
+    std::vector<FontEntry> available_fonts;      // ESP fonts
+    std::vector<FontEntry> menu_fonts;            // Menu fonts
     bool font_rebuild_needed = false;
 
     bool init(const wchar_t* target_window) {
@@ -73,7 +74,7 @@ public:
 
         if (!init_dx11()) return false;
 
-        scan_system_fonts();
+        scan_fonts();
         init_imgui();
 
         ShowWindow(overlay_hwnd, SW_SHOWDEFAULT);
@@ -85,35 +86,23 @@ public:
         if (interactive) {
             ex &= ~WS_EX_TRANSPARENT;
             SetWindowLong(overlay_hwnd, GWL_EXSTYLE, ex);
-
             force_foreground(overlay_hwnd);
-
             while (ShowCursor(TRUE) < 0) {}
-
             Sleep(50);
-
             RECT wr;
             GetWindowRect(overlay_hwnd, &wr);
-            int cx = (wr.left + wr.right) / 2;
-            int cy = (wr.top + wr.bottom) / 2;
-            SetCursorPos(cx, cy);
-
+            SetCursorPos((wr.left + wr.right) / 2, (wr.top + wr.bottom) / 2);
             ClipCursor(&wr);
-
             POINT cursor;
             GetCursorPos(&cursor);
             ScreenToClient(overlay_hwnd, &cursor);
-            PostMessage(overlay_hwnd, WM_MOUSEMOVE, 0,
-                        MAKELPARAM(cursor.x, cursor.y));
+            PostMessage(overlay_hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(cursor.x, cursor.y));
             PostMessage(overlay_hwnd, WM_ACTIVATE, WA_ACTIVE, 0);
         } else {
             ClipCursor(nullptr);
-
             ex |= WS_EX_TRANSPARENT;
             SetWindowLong(overlay_hwnd, GWL_EXSTYLE, ex);
-
             while (ShowCursor(FALSE) >= 0) {}
-
             if (game_hwnd && IsWindow(game_hwnd)) {
                 force_foreground(game_hwnd);
                 PostMessage(game_hwnd, WM_ACTIVATE, WA_ACTIVE, 0);
@@ -121,57 +110,58 @@ public:
         }
     }
 
-    void rebuild_esp_font() {
+    void rebuild_fonts() {
         auto& io = ImGui::GetIO();
-
         ImGui_ImplDX11_InvalidateDeviceObjects();
         io.Fonts->Clear();
 
-        // Try FiraCode first for menu, then Consolas, then Segoe UI
-        const char* menu_font_path = find_fira_code();
-        if (!menu_font_path) menu_font_path = find_font("consola.ttf");
-        if (!menu_font_path) menu_font_path = find_font("segoeui.ttf");
+        // Menu font
+        const char* mf_path = get_menu_font_path();
+        float mf_size = g_settings.menu_font_size;
 
         ImFontConfig cfg;
         cfg.OversampleH = 2;
         cfg.OversampleV = 1;
 
-        if (menu_font_path) {
-            default_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 14.0f, &cfg,
+        if (mf_path) {
+            default_font = io.Fonts->AddFontFromFileTTF(mf_path, mf_size, &cfg,
                 io.Fonts->GetGlyphRangesDefault());
-            menu_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 13.0f, &cfg,
+            menu_font = io.Fonts->AddFontFromFileTTF(mf_path, mf_size - 1.0f, &cfg,
                 io.Fonts->GetGlyphRangesDefault());
-            menu_title_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 18.0f, &cfg,
+            menu_title_font = io.Fonts->AddFontFromFileTTF(mf_path, mf_size + 4.0f, &cfg,
                 io.Fonts->GetGlyphRangesDefault());
         }
         if (!default_font) default_font = io.Fonts->AddFontDefault();
         if (!menu_font) menu_font = default_font;
         if (!menu_title_font) menu_title_font = default_font;
 
-        // Spectator font
+        // Spec font: fixed small, uses menu font file
         ImFontConfig spec_cfg;
         spec_cfg.OversampleH = 2;
         spec_cfg.OversampleV = 1;
-        const char* spec_path = menu_font_path ? menu_font_path : "C:\\Windows\\Fonts\\segoeui.ttf";
-        spec_font = io.Fonts->AddFontFromFileTTF(spec_path, 13.0f, &spec_cfg, get_glyph_ranges());
+        if (mf_path)
+            spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
 
         // ESP font
-        float atlas_size = std::max({g_settings.name_font_size,
-                                     g_settings.hp_font_size, 14.0f});
+        float atlas_size = std::max({g_settings.name_font_size, g_settings.hp_font_size, 14.0f});
         atlas_size = std::min(atlas_size + 4.0f, 32.0f);
         g_settings.esp_font_atlas_size = atlas_size;
 
-        const char* font_path = get_current_font_path();
+        const char* esp_path = get_esp_font_path();
         ImFontConfig esp_cfg;
         esp_cfg.OversampleH = 2;
         esp_cfg.OversampleV = 1;
 
         esp_font = nullptr;
-        if (font_path)
-            esp_font = io.Fonts->AddFontFromFileTTF(font_path, atlas_size, &esp_cfg, get_glyph_ranges());
-        if (!esp_font)
-            esp_font = io.Fonts->AddFontDefault();
+        if (esp_path)
+            esp_font = io.Fonts->AddFontFromFileTTF(esp_path, atlas_size, &esp_cfg, get_glyph_ranges());
+        if (!esp_font) {
+            // Fallback to Arial
+            const char* fb = find_system_font("arial.ttf");
+            if (fb) esp_font = io.Fonts->AddFontFromFileTTF(fb, atlas_size, &esp_cfg, get_glyph_ranges());
+        }
+        if (!esp_font) esp_font = io.Fonts->AddFontDefault();
 
         io.Fonts->Build();
         ImGui_ImplDX11_CreateDeviceObjects();
@@ -186,9 +176,7 @@ public:
             DispatchMessage(&msg);
         }
         if (!IsWindow(game_hwnd)) return false;
-
-        if (font_rebuild_needed)
-            rebuild_esp_font();
+        if (font_rebuild_needed) rebuild_fonts();
 
         static int check_tick = 0;
         if (++check_tick >= 10) {
@@ -196,7 +184,6 @@ public:
             bool game_visible = !IsIconic(game_hwnd);
             HWND fg = GetForegroundWindow();
             bool should_show = game_visible && (fg == game_hwnd || fg == overlay_hwnd);
-
             if (!should_show && !g_settings.menu_open) {
                 ShowWindow(overlay_hwnd, SW_HIDE);
             } else {
@@ -236,6 +223,69 @@ public:
         DestroyWindow(overlay_hwnd);
     }
 
+    void apply_menu_style() {
+        auto& s = ImGui::GetStyle();
+        ImVec4* colors = s.Colors;
+        ImVec4 accent = {g_settings.menu_accent_color[0], g_settings.menu_accent_color[1],
+                         g_settings.menu_accent_color[2], g_settings.menu_accent_color[3]};
+        ImVec4 accent_dim = {accent.x * 0.6f, accent.y * 0.6f, accent.z * 0.6f, accent.w * 0.7f};
+        ImVec4 border = {g_settings.menu_border_color[0], g_settings.menu_border_color[1],
+                         g_settings.menu_border_color[2], g_settings.menu_border_color[3]};
+        float bg_a = g_settings.menu_bg_alpha;
+
+        colors[ImGuiCol_WindowBg]         = {0.06f, 0.06f, 0.08f, bg_a};
+        colors[ImGuiCol_ChildBg]          = {0.07f, 0.07f, 0.09f, bg_a * 0.5f};
+        colors[ImGuiCol_PopupBg]          = {0.08f, 0.08f, 0.10f, bg_a};
+        colors[ImGuiCol_Border]           = border;
+        colors[ImGuiCol_BorderShadow]     = {0, 0, 0, 0};
+        colors[ImGuiCol_FrameBg]          = {0.10f, 0.10f, 0.12f, 0.8f};
+        colors[ImGuiCol_FrameBgHovered]   = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 0.6f};
+        colors[ImGuiCol_FrameBgActive]    = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.8f};
+        colors[ImGuiCol_TitleBg]          = {0.04f, 0.04f, 0.06f, bg_a};
+        colors[ImGuiCol_TitleBgActive]    = {accent.x * 0.1f, accent.y * 0.1f, accent.z * 0.1f, bg_a};
+        colors[ImGuiCol_TitleBgCollapsed] = {0.04f, 0.04f, 0.06f, 0.5f};
+        colors[ImGuiCol_Tab]             = {0.08f, 0.08f, 0.10f, 0.8f};
+        colors[ImGuiCol_TabHovered]      = {accent.x * 0.4f, accent.y * 0.4f, accent.z * 0.4f, 0.8f};
+        colors[ImGuiCol_TabActive]       = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 1.0f};
+        colors[ImGuiCol_TabUnfocused]    = {0.06f, 0.06f, 0.08f, 0.8f};
+        colors[ImGuiCol_TabUnfocusedActive] = {accent.x * 0.15f, accent.y * 0.15f, accent.z * 0.15f, 0.9f};
+        colors[ImGuiCol_Button]          = {0.12f, 0.12f, 0.14f, 0.8f};
+        colors[ImGuiCol_ButtonHovered]   = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.8f};
+        colors[ImGuiCol_ButtonActive]    = {accent.x * 0.5f, accent.y * 0.5f, accent.z * 0.5f, 1.0f};
+        colors[ImGuiCol_Header]          = {accent.x * 0.15f, accent.y * 0.15f, accent.z * 0.15f, 0.6f};
+        colors[ImGuiCol_HeaderHovered]   = {accent.x * 0.25f, accent.y * 0.25f, accent.z * 0.25f, 0.8f};
+        colors[ImGuiCol_HeaderActive]    = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 1.0f};
+        colors[ImGuiCol_SliderGrab]      = accent_dim;
+        colors[ImGuiCol_SliderGrabActive]= accent;
+        colors[ImGuiCol_CheckMark]       = accent;
+        colors[ImGuiCol_Separator]       = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.5f};
+        colors[ImGuiCol_SeparatorHovered]= accent_dim;
+        colors[ImGuiCol_SeparatorActive] = accent;
+        colors[ImGuiCol_ScrollbarBg]     = {0.05f, 0.05f, 0.07f, 0.5f};
+        colors[ImGuiCol_ScrollbarGrab]   = {0.15f, 0.15f, 0.18f, 0.8f};
+        colors[ImGuiCol_ScrollbarGrabHovered] = accent_dim;
+        colors[ImGuiCol_ScrollbarGrabActive]  = accent;
+        colors[ImGuiCol_Text]            = {0.85f, 0.90f, 0.88f, 1.0f};
+        colors[ImGuiCol_TextDisabled]    = {0.40f, 0.45f, 0.43f, 1.0f};
+        colors[ImGuiCol_ResizeGrip]      = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 0.3f};
+        colors[ImGuiCol_ResizeGripHovered]= accent_dim;
+        colors[ImGuiCol_ResizeGripActive] = accent;
+
+        s.WindowRounding = 4.0f;
+        s.FrameRounding = 3.0f;
+        s.GrabRounding = 2.0f;
+        s.TabRounding = 3.0f;
+        s.ScrollbarRounding = 2.0f;
+        s.WindowBorderSize = 1.0f;
+        s.FrameBorderSize = 0.0f;
+        s.PopupBorderSize = 1.0f;
+        s.WindowPadding = {10, 10};
+        s.FramePadding = {6, 4};
+        s.ItemSpacing = {8, 6};
+        s.ItemInnerSpacing = {6, 4};
+        s.Alpha = 1.0f;
+    }
+
 private:
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* context = nullptr;
@@ -270,29 +320,7 @@ private:
         return ranges;
     }
 
-    const char* find_fira_code() {
-        static std::string path;
-        // Check local directory first
-        const char* local_names[] = {
-            "FiraCode-Regular.ttf",
-            "FiraCode-Medium.ttf",
-            "FiraCode-Light.ttf",
-            "fonts/FiraCode-Regular.ttf",
-        };
-        for (const char* n : local_names) {
-            FILE* f = fopen(n, "rb");
-            if (f) { fclose(f); path = n; return path.c_str(); }
-        }
-        // Check system fonts
-        char font_dir[MAX_PATH];
-        GetWindowsDirectoryA(font_dir, MAX_PATH);
-        strcat_s(font_dir, "\\Fonts\\FiraCode-Regular.ttf");
-        FILE* f = fopen(font_dir, "rb");
-        if (f) { fclose(f); path = font_dir; return path.c_str(); }
-        return nullptr;
-    }
-
-    const char* find_font(const char* filename) {
+    static const char* find_system_font(const char* filename) {
         static std::string path;
         char font_dir[MAX_PATH];
         GetWindowsDirectoryA(font_dir, MAX_PATH);
@@ -302,7 +330,13 @@ private:
         return nullptr;
     }
 
-    const char* get_current_font_path() {
+    static bool file_exists(const char* p) {
+        FILE* f = fopen(p, "rb");
+        if (f) { fclose(f); return true; }
+        return false;
+    }
+
+    const char* get_esp_font_path() {
         if (g_settings.esp_font_index >= 0 &&
             g_settings.esp_font_index < (int)available_fonts.size() &&
             !available_fonts[g_settings.esp_font_index].path.empty())
@@ -310,13 +344,67 @@ private:
         return nullptr;
     }
 
-    void scan_system_fonts() {
-        available_fonts.clear();
+    const char* get_menu_font_path() {
+        if (g_settings.menu_font_index >= 0 &&
+            g_settings.menu_font_index < (int)menu_fonts.size() &&
+            !menu_fonts[g_settings.menu_font_index].path.empty())
+            return menu_fonts[g_settings.menu_font_index].path.c_str();
+        return nullptr;
+    }
 
-        struct FC { const char* display; const char* filename; };
-        static const FC candidates[] = {
-            {"Fira Code",          "FiraCode-Regular.ttf"},
-            {"Fira Code Medium",   "FiraCode-Medium.ttf"},
+    void scan_fonts() {
+        available_fonts.clear();
+        menu_fonts.clear();
+
+        char font_dir[MAX_PATH];
+        GetWindowsDirectoryA(font_dir, MAX_PATH);
+        std::string fd = std::string(font_dir) + "\\Fonts\\";
+
+        // ===== Menu fonts =====
+        // Local Fira Code variants (from fonts/ folder)
+        struct LocalFont { const char* display; const char* path; };
+        static const LocalFont fira_variants[] = {
+            {"Fira Code Light",    "fonts/FiraCode-Light.ttf"},
+            {"Fira Code Regular",  "fonts/FiraCode-Regular.ttf"},
+            {"Fira Code Medium",   "fonts/FiraCode-Medium.ttf"},
+            {"Fira Code SemiBold", "fonts/FiraCode-SemiBold.ttf"},
+            {"Fira Code Bold",     "fonts/FiraCode-Bold.ttf"},
+        };
+        for (const auto& fv : fira_variants) {
+            if (file_exists(fv.path))
+                menu_fonts.push_back({fv.display, fv.path});
+        }
+
+        // System fonts for menu
+        struct SysFont { const char* display; const char* filename; };
+        static const SysFont menu_sys[] = {
+            {"Consolas",        "consola.ttf"},
+            {"Consolas Bold",   "consolab.ttf"},
+            {"Segoe UI",        "segoeui.ttf"},
+            {"Segoe UI Bold",   "seguisb.ttf"},
+            {"Cascadia Code",   "CascadiaCode.ttf"},
+            {"Cascadia Mono",   "CascadiaMono.ttf"},
+            {"Lucida Console",  "lucon.ttf"},
+            {"Courier New",     "cour.ttf"},
+            {"Tahoma",          "tahoma.ttf"},
+            {"Arial",           "arial.ttf"},
+            {"Verdana",         "verdana.ttf"},
+        };
+        for (const auto& ms : menu_sys) {
+            std::string full = fd + ms.filename;
+            if (file_exists(full.c_str()))
+                menu_fonts.push_back({ms.display, full});
+        }
+        if (menu_fonts.empty())
+            menu_fonts.push_back({"Default (ImGui)", ""});
+
+        if (g_settings.menu_font_index < 0 ||
+            g_settings.menu_font_index >= (int)menu_fonts.size())
+            g_settings.menu_font_index = 0;
+
+        // ===== ESP fonts =====
+        // Put Arial first as default
+        static const SysFont esp_sys[] = {
             {"Arial",              "arial.ttf"},
             {"Arial Bold",         "arialbd.ttf"},
             {"Arial Unicode MS",   "ARIALUNI.TTF"},
@@ -336,36 +424,17 @@ private:
             {"Verdana Bold",       "verdanab.ttf"},
         };
 
-        char font_dir[MAX_PATH];
-        GetWindowsDirectoryA(font_dir, MAX_PATH);
-        std::string fd = std::string(font_dir) + "\\Fonts\\";
-
-        // Check local directory for Fira Code first
-        const char* local_fira[] = {"FiraCode-Regular.ttf", "FiraCode-Medium.ttf",
-                                     "fonts/FiraCode-Regular.ttf"};
-        for (const char* lf : local_fira) {
-            FILE* f = fopen(lf, "rb");
-            if (f) {
-                fclose(f);
-                std::string name = (strstr(lf, "Medium")) ? "Fira Code Medium" : "Fira Code";
-                available_fonts.push_back({name, lf});
-            }
+        // Local Fira Code for ESP too
+        for (const auto& fv : fira_variants) {
+            if (file_exists(fv.path))
+                available_fonts.push_back({fv.display, fv.path});
         }
 
-        for (const auto& c : candidates) {
-            std::string full_path = fd + c.filename;
-            FILE* f = fopen(full_path.c_str(), "rb");
-            if (f) {
-                fclose(f);
-                // Skip if already added from local
-                bool dup = false;
-                for (const auto& af : available_fonts)
-                    if (af.display_name == c.display) { dup = true; break; }
-                if (!dup)
-                    available_fonts.push_back({c.display, full_path});
-            }
+        for (const auto& es : esp_sys) {
+            std::string full = fd + es.filename;
+            if (file_exists(full.c_str()))
+                available_fonts.push_back({es.display, full});
         }
-
         if (available_fonts.empty())
             available_fonts.push_back({"Default (ImGui)", ""});
 
@@ -408,163 +477,18 @@ private:
         io.IniFilename = nullptr;
         io.LogFilename = nullptr;
 
-        // Initial font build uses rebuild_esp_font logic
-        const char* menu_font_path = find_fira_code();
-        if (!menu_font_path) menu_font_path = find_font("consola.ttf");
-        if (!menu_font_path) menu_font_path = find_font("segoeui.ttf");
-
-        ImFontConfig cfg;
-        cfg.OversampleH = 2;
-        cfg.OversampleV = 1;
-
-        if (menu_font_path) {
-            default_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 14.0f, &cfg,
-                io.Fonts->GetGlyphRangesDefault());
-            menu_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 13.0f, &cfg,
-                io.Fonts->GetGlyphRangesDefault());
-            menu_title_font = io.Fonts->AddFontFromFileTTF(menu_font_path, 18.0f, &cfg,
-                io.Fonts->GetGlyphRangesDefault());
-            printf("[+] Menu font: %s\n", menu_font_path);
-        }
-        if (!default_font) default_font = io.Fonts->AddFontDefault();
-        if (!menu_font) menu_font = default_font;
-        if (!menu_title_font) menu_title_font = default_font;
-
-        ImFontConfig spec_cfg;
-        spec_cfg.OversampleH = 2;
-        spec_cfg.OversampleV = 1;
-        const char* spec_path = menu_font_path ? menu_font_path : "C:\\Windows\\Fonts\\segoeui.ttf";
-        spec_font = io.Fonts->AddFontFromFileTTF(spec_path, 13.0f, &spec_cfg, get_glyph_ranges());
-        if (!spec_font) spec_font = io.Fonts->AddFontDefault();
-
-        float atlas_size = std::max({g_settings.name_font_size, g_settings.hp_font_size, 14.0f});
-        atlas_size = std::min(atlas_size + 4.0f, 32.0f);
-        g_settings.esp_font_atlas_size = atlas_size;
-
-        ImFontConfig esp_cfg;
-        esp_cfg.OversampleH = 2;
-        esp_cfg.OversampleV = 1;
-        const char* font_path = get_current_font_path();
-        esp_font = nullptr;
-        if (font_path)
-            esp_font = io.Fonts->AddFontFromFileTTF(font_path, atlas_size, &esp_cfg, get_glyph_ranges());
-        if (!esp_font) {
-            const char* fallbacks[] = {
-                "C:\\Windows\\Fonts\\ARIALUNI.TTF", "C:\\Windows\\Fonts\\msyh.ttc",
-                "C:\\Windows\\Fonts\\arial.ttf", "C:\\Windows\\Fonts\\segoeui.ttf",
-            };
-            for (const char* fb : fallbacks) {
-                FILE* f = fopen(fb, "rb");
-                if (f) { fclose(f); esp_font = io.Fonts->AddFontFromFileTTF(fb, atlas_size, &esp_cfg, get_glyph_ranges()); if (esp_font) break; }
-            }
-        }
-        if (!esp_font) esp_font = io.Fonts->AddFontDefault();
-
-        io.Fonts->Build();
-
-        // Apply hacker style by default
-        apply_menu_style();
-
         ImGui_ImplWin32_Init(overlay_hwnd);
         ImGui_ImplDX11_Init(device, context);
+
+        // Build all fonts via rebuild_fonts
+        rebuild_fonts();
+        apply_menu_style();
     }
 
     static LRESULT WINAPI wnd_proc(HWND h, UINT m, WPARAM w, LPARAM l) {
         if (ImGui_ImplWin32_WndProcHandler(h, m, w, l)) return 0;
         if (m == WM_DESTROY) { PostQuitMessage(0); return 0; }
         return DefWindowProcW(h, m, w, l);
-    }
-
-public:
-    void apply_menu_style() {
-        auto& s = ImGui::GetStyle();
-        ImVec4* colors = s.Colors;
-        ImVec4 accent = {g_settings.menu_accent_color[0], g_settings.menu_accent_color[1],
-                         g_settings.menu_accent_color[2], g_settings.menu_accent_color[3]};
-        ImVec4 accent_dim = {accent.x * 0.6f, accent.y * 0.6f, accent.z * 0.6f, accent.w * 0.7f};
-        ImVec4 accent_bg = {accent.x * 0.15f, accent.y * 0.15f, accent.z * 0.15f, g_settings.menu_bg_alpha};
-        ImVec4 border = {g_settings.menu_border_color[0], g_settings.menu_border_color[1],
-                         g_settings.menu_border_color[2], g_settings.menu_border_color[3]};
-
-        float bg_a = g_settings.menu_bg_alpha;
-
-        // Dark background
-        colors[ImGuiCol_WindowBg]         = {0.06f, 0.06f, 0.08f, bg_a};
-        colors[ImGuiCol_ChildBg]          = {0.07f, 0.07f, 0.09f, bg_a * 0.5f};
-        colors[ImGuiCol_PopupBg]          = {0.08f, 0.08f, 0.10f, bg_a};
-
-        // Borders
-        colors[ImGuiCol_Border]           = border;
-        colors[ImGuiCol_BorderShadow]     = {0, 0, 0, 0};
-
-        // Frame (checkboxes, sliders, etc)
-        colors[ImGuiCol_FrameBg]          = {0.10f, 0.10f, 0.12f, 0.8f};
-        colors[ImGuiCol_FrameBgHovered]   = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 0.6f};
-        colors[ImGuiCol_FrameBgActive]    = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.8f};
-
-        // Title
-        colors[ImGuiCol_TitleBg]          = {0.04f, 0.04f, 0.06f, bg_a};
-        colors[ImGuiCol_TitleBgActive]    = {accent.x * 0.1f, accent.y * 0.1f, accent.z * 0.1f, bg_a};
-        colors[ImGuiCol_TitleBgCollapsed] = {0.04f, 0.04f, 0.06f, 0.5f};
-
-        // Tabs
-        colors[ImGuiCol_Tab]             = {0.08f, 0.08f, 0.10f, 0.8f};
-        colors[ImGuiCol_TabHovered]      = {accent.x * 0.4f, accent.y * 0.4f, accent.z * 0.4f, 0.8f};
-        colors[ImGuiCol_TabActive]       = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 1.0f};
-        colors[ImGuiCol_TabUnfocused]    = {0.06f, 0.06f, 0.08f, 0.8f};
-        colors[ImGuiCol_TabUnfocusedActive] = {accent.x * 0.15f, accent.y * 0.15f, accent.z * 0.15f, 0.9f};
-
-        // Buttons
-        colors[ImGuiCol_Button]          = {0.12f, 0.12f, 0.14f, 0.8f};
-        colors[ImGuiCol_ButtonHovered]   = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.8f};
-        colors[ImGuiCol_ButtonActive]    = {accent.x * 0.5f, accent.y * 0.5f, accent.z * 0.5f, 1.0f};
-
-        // Header (collapsing headers)
-        colors[ImGuiCol_Header]          = {accent.x * 0.15f, accent.y * 0.15f, accent.z * 0.15f, 0.6f};
-        colors[ImGuiCol_HeaderHovered]   = {accent.x * 0.25f, accent.y * 0.25f, accent.z * 0.25f, 0.8f};
-        colors[ImGuiCol_HeaderActive]    = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 1.0f};
-
-        // Slider
-        colors[ImGuiCol_SliderGrab]      = accent_dim;
-        colors[ImGuiCol_SliderGrabActive]= accent;
-
-        // Checkmark
-        colors[ImGuiCol_CheckMark]       = accent;
-
-        // Separator
-        colors[ImGuiCol_Separator]       = {accent.x * 0.3f, accent.y * 0.3f, accent.z * 0.3f, 0.5f};
-        colors[ImGuiCol_SeparatorHovered]= accent_dim;
-        colors[ImGuiCol_SeparatorActive] = accent;
-
-        // Scrollbar
-        colors[ImGuiCol_ScrollbarBg]     = {0.05f, 0.05f, 0.07f, 0.5f};
-        colors[ImGuiCol_ScrollbarGrab]   = {0.15f, 0.15f, 0.18f, 0.8f};
-        colors[ImGuiCol_ScrollbarGrabHovered] = accent_dim;
-        colors[ImGuiCol_ScrollbarGrabActive]  = accent;
-
-        // Text
-        colors[ImGuiCol_Text]            = {0.85f, 0.90f, 0.88f, 1.0f};
-        colors[ImGuiCol_TextDisabled]    = {0.40f, 0.45f, 0.43f, 1.0f};
-
-        // Resize grip
-        colors[ImGuiCol_ResizeGrip]      = {accent.x * 0.2f, accent.y * 0.2f, accent.z * 0.2f, 0.3f};
-        colors[ImGuiCol_ResizeGripHovered]= accent_dim;
-        colors[ImGuiCol_ResizeGripActive] = accent;
-
-        // Style tweaks
-        s.WindowRounding = 4.0f;
-        s.FrameRounding = 3.0f;
-        s.GrabRounding = 2.0f;
-        s.TabRounding = 3.0f;
-        s.ScrollbarRounding = 2.0f;
-        s.WindowBorderSize = 1.0f;
-        s.FrameBorderSize = 0.0f;
-        s.PopupBorderSize = 1.0f;
-        s.WindowPadding = {10, 10};
-        s.FramePadding = {6, 4};
-        s.ItemSpacing = {8, 6};
-        s.ItemInnerSpacing = {6, 4};
-        s.Alpha = 1.0f;
     }
 };
 

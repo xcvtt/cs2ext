@@ -85,9 +85,10 @@ public:
                 py = std::clamp(py, ry + 4.0f, ry + size - 4.0f);
             }
 
+            // Use independent radar colors
             ImU32 col = enemy
-                            ? float4_to_col(g_settings.enemy_outline)
-                            : float4_to_col(g_settings.team_outline);
+                            ? float4_to_col(g_settings.radar_enemy_color)
+                            : float4_to_col(g_settings.radar_team_color);
 
             float world_dist = sqrtf(dx * dx + dy * dy);
             float dot_r = std::clamp(5.0f - world_dist / range * 2.0f, 2.5f, 5.0f);

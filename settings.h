@@ -1,5 +1,4 @@
 #pragma once
-#include <Windows.h>
 
 struct MenuSettings {
     bool master_switch = true;
@@ -10,12 +9,12 @@ struct MenuSettings {
     bool draw_name = true;
     bool draw_weapon = true;
     bool draw_teammates = false;
-    bool draw_skeleton_wire = false;
+    bool draw_head = true;
     bool draw_spectators = true;
     bool draw_radar = true;
     int chams_style = 0;
 
-    float target_fps = 500.0f;
+    float target_fps = 1000.0f;
 
     // ---- ESP Theme ----
     bool esp_use_theme = true;

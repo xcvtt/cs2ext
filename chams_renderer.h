@@ -5,7 +5,8 @@
 #include "types.h"
 #include "settings.h"
 
-enum class ChamsStyle { FILLED, WIREFRAME, GLOW, FLAT_SHADED };
+// Styles: 0=Filled, 1=Wireframe, 2=Glow, 3=Skeleton
+enum class ChamsStyle { FILLED, WIREFRAME, GLOW, SKELETON };
 
 struct ColorSet {
     ImU32 fill, outline, glow, wire, head_fill;
@@ -32,13 +33,12 @@ inline ColorSet get_team_colors() {
 }
 
 struct LimbQuad {
-    ImVec2 p[4]; // p[0],p[1] = bone_a end; p[2],p[3] = bone_b end
+    ImVec2 p[4];
     bool valid;
 };
 
 class ChamsRenderer {
 public:
-    // Build a tapered quad between two bones with perspective-correct widths
     static LimbQuad build_limb_quad(const PlayerVisuals& p, const LimbDef& limb,
                                     float depth_scale, float extra = 0) {
         LimbQuad q{};
@@ -65,38 +65,34 @@ public:
         return q;
     }
 
-    // Draw a filled ellipse at a position using triangle fan
     static void draw_ellipse_filled(ImDrawList* d, ImVec2 center,
-                                     float rx, float ry, float angle,
-                                     ImU32 col, int segments = 20) {
+                                    float rx, float ry, float angle,
+                                    ImU32 col, int segments = 20) {
         if (rx < 0.5f || ry < 0.5f) return;
         float cos_a = cosf(angle), sin_a = sinf(angle);
         ImVec2 prev;
         for (int i = 0; i <= segments; i++) {
             float t = (float)i / segments * 6.28318530f;
-            float ex = rx * cosf(t);
-            float ey = ry * sinf(t);
+            float ex = rx * cosf(t), ey = ry * sinf(t);
             ImVec2 pt = {
                 center.x + ex * cos_a - ey * sin_a,
                 center.y + ex * sin_a + ey * cos_a
             };
-            if (i > 0)
-                d->AddTriangleFilled(center, prev, pt, col);
+            if (i > 0) d->AddTriangleFilled(center, prev, pt, col);
             prev = pt;
         }
     }
 
     static void draw_ellipse_stroke(ImDrawList* d, ImVec2 center,
-                                     float rx, float ry, float angle,
-                                     ImU32 col, float thickness = 1.0f,
-                                     int segments = 20) {
+                                    float rx, float ry, float angle,
+                                    ImU32 col, float thickness = 1.0f,
+                                    int segments = 20) {
         if (rx < 0.5f || ry < 0.5f) return;
         float cos_a = cosf(angle), sin_a = sinf(angle);
         ImVec2 prev;
         for (int i = 0; i <= segments; i++) {
             float t = (float)i / segments * 6.28318530f;
-            float ex = rx * cosf(t);
-            float ey = ry * sinf(t);
+            float ex = rx * cosf(t), ey = ry * sinf(t);
             ImVec2 pt = {
                 center.x + ex * cos_a - ey * sin_a,
                 center.y + ex * sin_a + ey * cos_a
@@ -106,184 +102,128 @@ public:
         }
     }
 
-    // ===== BODY RENDERING STYLES =====
+    // ===== BODY STYLES =====
 
-    // Filled: draw elliptical tube segments along each limb for volumetric look
     static void draw_body_filled(ImDrawList* d, const PlayerVisuals& p,
-                                  const ColorSet& c, bool shade, float depth_scale) {
+                                 const ColorSet& c, bool shade, float depth_scale) {
         float sc = g_settings.body_width_scale;
         for (int i = 0; i < BODY_LIMB_COUNT; i++) {
             const auto& limb = BODY_LIMBS[i];
             if (!p.visible[limb.bone_a] || !p.visible[limb.bone_b]) continue;
-
             ImVec2 a = p.screens[limb.bone_a], b = p.screens[limb.bone_b];
             float da = p.depths[limb.bone_a], db = p.depths[limb.bone_b];
-
             float dx = b.x - a.x, dy = b.y - a.y;
             float len = sqrtf(dx * dx + dy * dy);
             if (len < 1.0f) continue;
-
             float angle = atan2f(dy, dx);
-
-            // Draw overlapping ellipses along the limb for smooth volume
-            int slices = std::max(3, (int)(len / 6.0f));
-            slices = std::min(slices, 12);
-
+            int slices = std::clamp((int)(len / 6.0f), 3, 12);
             for (int s = 0; s <= slices; s++) {
                 float t = (float)s / slices;
                 ImVec2 pos = {a.x + dx * t, a.y + dy * t};
                 float depth = da + (db - da) * t;
                 float w = (limb.width_a + (limb.width_b - limb.width_a) * t) * sc;
-
                 float rx = w * depth_scale / depth;
-                float ry = rx * 0.5f; // flattened for natural limb cross-section
-
-                ImU32 fill_col = c.fill;
-                if (shade) {
-                    // Darken towards one side for faux 3D
-                    float shade_f = 0.7f + 0.3f * t;
-                    fill_col = darken(c.fill, shade_f);
-                }
-
+                float ry = rx * 0.5f;
+                ImU32 fill_col = shade ? darken(c.fill, 0.7f + 0.3f * t) : c.fill;
                 draw_ellipse_filled(d, pos, rx, ry, angle, fill_col, 14);
             }
         }
     }
 
     static void draw_body_outline(ImDrawList* d, const PlayerVisuals& p,
-                                   const ColorSet& c, float depth_scale) {
+                                  const ColorSet& c, float depth_scale) {
         float sc = g_settings.body_width_scale;
         for (int i = 0; i < BODY_LIMB_COUNT; i++) {
             const auto& limb = BODY_LIMBS[i];
             if (!p.visible[limb.bone_a] || !p.visible[limb.bone_b]) continue;
-
             ImVec2 a = p.screens[limb.bone_a], b = p.screens[limb.bone_b];
             float da = p.depths[limb.bone_a], db = p.depths[limb.bone_b];
-
             float dx = b.x - a.x, dy = b.y - a.y;
             float len = sqrtf(dx * dx + dy * dy);
             if (len < 1.0f) continue;
-
             float angle = atan2f(dy, dx);
-
-            // Outline ellipse at each end of the limb
             float wa = limb.width_a * sc * depth_scale / da;
             float wb = limb.width_b * sc * depth_scale / db;
-
-            // Draw outer contour lines along the limb edges
             float nx = -dy / len, ny = dx / len;
             d->AddLine({a.x + nx * wa, a.y + ny * wa},
                        {b.x + nx * wb, b.y + ny * wb}, c.outline, 1.2f);
             d->AddLine({a.x - nx * wa, a.y - ny * wa},
                        {b.x - nx * wb, b.y - ny * wb}, c.outline, 1.2f);
-
-            // End cap ellipses
             draw_ellipse_stroke(d, a, wa, wa * 0.5f, angle, c.outline, 0.8f, 12);
             draw_ellipse_stroke(d, b, wb, wb * 0.5f, angle, c.outline, 0.8f, 12);
         }
     }
 
-    // Wireframe: clean polygon wireframe, no circles, cross-braces for structure
     static void draw_body_wireframe(ImDrawList* d, const PlayerVisuals& p,
-                                     const ColorSet& c, float depth_scale) {
+                                    const ColorSet& c, float depth_scale) {
         float sc = g_settings.body_width_scale;
         for (int i = 0; i < BODY_LIMB_COUNT; i++) {
             const auto& limb = BODY_LIMBS[i];
             if (!p.visible[limb.bone_a] || !p.visible[limb.bone_b]) continue;
-
             ImVec2 a = p.screens[limb.bone_a], b = p.screens[limb.bone_b];
             float da = p.depths[limb.bone_a], db = p.depths[limb.bone_b];
-
             float wa = limb.width_a * sc * depth_scale / da;
             float wb = limb.width_b * sc * depth_scale / db;
-
             float dx = b.x - a.x, dy = b.y - a.y;
             float len = sqrtf(dx * dx + dy * dy);
             if (len < 1.0f) continue;
-
             float nx = -dy / len, ny = dx / len;
-
-            // Four corners of the limb quad
             ImVec2 p0 = {a.x + nx * wa, a.y + ny * wa};
             ImVec2 p1 = {a.x - nx * wa, a.y - ny * wa};
             ImVec2 p2 = {b.x - nx * wb, b.y - ny * wb};
             ImVec2 p3 = {b.x + nx * wb, b.y + ny * wb};
-
-            // Very subtle transparent fill
-            d->AddQuadFilled(p0, p1, p2, p3,
-                             (c.fill & 0x00FFFFFF) | 0x10000000);
-
-            // Outer edges - main wireframe
+            d->AddQuadFilled(p0, p1, p2, p3, (c.fill & 0x00FFFFFF) | 0x10000000);
             d->AddLine(p0, p3, c.wire, 1.3f);
             d->AddLine(p1, p2, c.wire, 1.3f);
-
-            // End caps
             d->AddLine(p0, p1, c.wire, 1.0f);
             d->AddLine(p2, p3, c.wire, 1.0f);
-
-            // Cross braces for wireframe look
             d->AddLine(p0, p2, c.wire, 0.5f);
             d->AddLine(p1, p3, c.wire, 0.5f);
-
-            // Mid-section cross line for longer limbs
             if (len > 20.0f) {
                 float mw = (wa + wb) * 0.5f;
-                ImVec2 mid_a = {(a.x + b.x) * 0.5f + nx * mw,
-                                (a.y + b.y) * 0.5f + ny * mw};
-                ImVec2 mid_b = {(a.x + b.x) * 0.5f - nx * mw,
-                                (a.y + b.y) * 0.5f - ny * mw};
+                ImVec2 mid_a = {(a.x + b.x) * 0.5f + nx * mw, (a.y + b.y) * 0.5f + ny * mw};
+                ImVec2 mid_b = {(a.x + b.x) * 0.5f - nx * mw, (a.y + b.y) * 0.5f - ny * mw};
                 d->AddLine(mid_a, mid_b, c.wire, 0.6f);
             }
         }
     }
 
     static void draw_body_glow(ImDrawList* d, const PlayerVisuals& p,
-                                const ColorSet& c, float depth_scale, float expand) {
+                               const ColorSet& c, float depth_scale, float expand) {
         float sc = g_settings.body_width_scale;
         for (int i = 0; i < BODY_LIMB_COUNT; i++) {
             const auto& limb = BODY_LIMBS[i];
             if (!p.visible[limb.bone_a] || !p.visible[limb.bone_b]) continue;
-
             ImVec2 a = p.screens[limb.bone_a], b = p.screens[limb.bone_b];
             float da = p.depths[limb.bone_a], db = p.depths[limb.bone_b];
-
             float dx = b.x - a.x, dy = b.y - a.y;
             float len = sqrtf(dx * dx + dy * dy);
             if (len < 1.0f) continue;
-
             float angle = atan2f(dy, dx);
-
-            int slices = std::max(2, (int)(len / 8.0f));
-            slices = std::min(slices, 8);
-
+            int slices = std::clamp((int)(len / 8.0f), 2, 8);
             for (int s = 0; s <= slices; s++) {
                 float t = (float)s / slices;
                 ImVec2 pos = {a.x + dx * t, a.y + dy * t};
                 float depth = da + (db - da) * t;
                 float w = (limb.width_a + (limb.width_b - limb.width_a) * t) * sc;
-
                 float rx = (w + expand) * depth_scale / depth;
                 float ry = rx * 0.5f;
-
                 draw_ellipse_filled(d, pos, rx, ry, angle, c.glow, 12);
             }
         }
     }
 
-    // ===== HEAD RENDERING =====
+    // ===== HEAD =====
 
     static void draw_head(ImDrawList* d, const PlayerVisuals& p,
                           const ColorSet& c, bool glow, float depth_scale) {
         if (!p.visible[BONE_HEAD] || !p.visible[BONE_NECK]) return;
-
-        float r = g_settings.head_radius * depth_scale / p.depths[BONE_HEAD];
-        r = std::clamp(r, 2.0f, 80.0f);
+        float r = std::clamp(g_settings.head_radius * depth_scale / p.depths[BONE_HEAD],
+                             2.0f, 80.0f);
         ImVec2 head = p.screens[BONE_HEAD];
         ImVec2 neck = p.screens[BONE_NECK];
 
-        // Neck connection
-        float neck_w_top = r * 0.5f;
-        float neck_w_bot = r * 0.7f;
+        float neck_w_top = r * 0.5f, neck_w_bot = r * 0.7f;
         float dx = neck.x - head.x, dy = neck.y - head.y;
         float len = sqrtf(dx * dx + dy * dy);
         if (len > 1.0f) {
@@ -308,45 +248,37 @@ public:
             d->AddLine(nt[0], nt[3], c.outline, 1.0f);
             d->AddLine(nt[1], nt[2], c.outline, 1.0f);
         }
-
-        // Glow rings
         if (glow) {
             d->AddCircleFilled(head, r + g_settings.glow_expand_outer, c.glow, 24);
             d->AddCircleFilled(head, r + g_settings.glow_expand_inner, c.glow, 24);
         }
-
-        // Head: slightly oval
-        float head_rx = r;
-        float head_ry = r * 1.15f;
-        draw_ellipse_filled(d, head, head_rx, head_ry, 0, c.head_fill, 24);
-        draw_ellipse_stroke(d, head, head_rx, head_ry, 0, c.outline, 1.2f, 24);
+        draw_ellipse_filled(d, head, r, r * 1.15f, 0, c.head_fill, 24);
+        draw_ellipse_stroke(d, head, r, r * 1.15f, 0, c.outline, 1.2f, 24);
     }
 
     static void draw_head_wire(ImDrawList* d, const PlayerVisuals& p,
-                                const ColorSet& c, float depth_scale) {
+                               const ColorSet& c, float depth_scale) {
         if (!p.visible[BONE_HEAD] || !p.visible[BONE_NECK]) return;
-
-        float r = g_settings.head_radius * depth_scale / p.depths[BONE_HEAD];
-        r = std::clamp(r, 2.0f, 80.0f);
+        float r = std::clamp(g_settings.head_radius * depth_scale / p.depths[BONE_HEAD],
+                             2.0f, 80.0f);
         ImVec2 head = p.screens[BONE_HEAD];
         ImVec2 neck = p.screens[BONE_NECK];
-
-        float head_rx = r;
-        float head_ry = r * 1.15f;
-
-        // Very subtle fill
-        draw_ellipse_filled(d, head, head_rx, head_ry, 0,
+        draw_ellipse_filled(d, head, r, r * 1.15f, 0,
                             (c.fill & 0x00FFFFFF) | 0x10000000, 20);
-
-        // Main outline
-        draw_ellipse_stroke(d, head, head_rx, head_ry, 0, c.wire, 1.3f, 20);
-
-        // Cross-hair inside head for wireframe look
-        d->AddLine({head.x - head_rx, head.y}, {head.x + head_rx, head.y}, c.wire, 0.5f);
-        d->AddLine({head.x, head.y - head_ry}, {head.x, head.y + head_ry}, c.wire, 0.5f);
-
-        // Neck line
+        draw_ellipse_stroke(d, head, r, r * 1.15f, 0, c.wire, 1.3f, 20);
+        d->AddLine({head.x - r, head.y}, {head.x + r, head.y}, c.wire, 0.5f);
+        d->AddLine({head.x, head.y - r * 1.15f}, {head.x, head.y + r * 1.15f}, c.wire, 0.5f);
         d->AddLine(head, neck, c.wire, 1.0f);
+    }
+
+    // Head dot for skeleton style — just a small circle at the head bone
+    static void draw_head_skeleton(ImDrawList* d, const PlayerVisuals& p,
+                                   const ColorSet& c, float depth_scale) {
+        if (!p.visible[BONE_HEAD]) return;
+        float r = std::clamp(g_settings.head_radius * depth_scale / p.depths[BONE_HEAD],
+                             2.0f, 80.0f);
+        ImVec2 head = p.screens[BONE_HEAD];
+        d->AddCircle(head, r, c.wire, 20, 1.2f);
     }
 
     // ===== SKELETON =====
@@ -358,6 +290,13 @@ public:
                 d->AddLine(p.screens[f], p.screens[t], w, 1.0f);
     }
 
+    // Skeleton style: slightly thicker/brighter lines than the old skeleton wire overlay
+    static void draw_skeleton_style(ImDrawList* d, const PlayerVisuals& p, const ColorSet& c) {
+        for (const auto& [f, t] : SKELETON_CONNECTIONS)
+            if (p.visible[f] && p.visible[t])
+                d->AddLine(p.screens[f], p.screens[t], c.wire, 1.5f);
+    }
+
     // ===== MAIN DISPATCH =====
 
     static void draw_chams(ImDrawList* d, const PlayerVisuals& p,
@@ -366,23 +305,22 @@ public:
         case ChamsStyle::FILLED:
             draw_body_filled(d, p, c, false, depth_scale);
             draw_body_outline(d, p, c, depth_scale);
-            draw_head(d, p, c, false, depth_scale);
+            if (g_settings.draw_head) draw_head(d, p, c, false, depth_scale);
             break;
         case ChamsStyle::WIREFRAME:
             draw_body_wireframe(d, p, c, depth_scale);
-            draw_head_wire(d, p, c, depth_scale);
+            if (g_settings.draw_head) draw_head_wire(d, p, c, depth_scale);
             break;
         case ChamsStyle::GLOW:
             draw_body_glow(d, p, c, depth_scale, g_settings.glow_expand_outer);
             draw_body_glow(d, p, c, depth_scale, g_settings.glow_expand_inner);
             draw_body_filled(d, p, c, false, depth_scale);
             draw_body_outline(d, p, c, depth_scale);
-            draw_head(d, p, c, true, depth_scale);
+            if (g_settings.draw_head) draw_head(d, p, c, true, depth_scale);
             break;
-        case ChamsStyle::FLAT_SHADED:
-            draw_body_filled(d, p, c, true, depth_scale);
-            draw_body_outline(d, p, c, depth_scale);
-            draw_head(d, p, c, false, depth_scale);
+        case ChamsStyle::SKELETON:
+            draw_skeleton_style(d, p, c);
+            if (g_settings.draw_head) draw_head_skeleton(d, p, c, depth_scale);
             break;
         }
     }

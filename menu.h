@@ -162,13 +162,13 @@ private:
         //  CHAMS / SKELETON
         // ================================================================
         ImGui::Text("Chams Style:");
-        ImGui::RadioButton("Filled", &g_settings.chams_style, 0); ImGui::SameLine();
-        ImGui::RadioButton("Wire",   &g_settings.chams_style, 1); ImGui::SameLine();
-        ImGui::RadioButton("Glow",   &g_settings.chams_style, 2); ImGui::SameLine();
-        ImGui::RadioButton("Flat",   &g_settings.chams_style, 3);
+        ImGui::RadioButton("Filled",   &g_settings.chams_style, 0); ImGui::SameLine();
+        ImGui::RadioButton("Wire",     &g_settings.chams_style, 1); ImGui::SameLine();
+        ImGui::RadioButton("Glow",     &g_settings.chams_style, 2); ImGui::SameLine();
+        ImGui::RadioButton("Skeleton", &g_settings.chams_style, 3);
 
-        ImGui::Checkbox("Skeleton Wire", &g_settings.draw_skeleton_wire);
-        ImGui::Checkbox("Teammates",     &g_settings.draw_teammates);
+        ImGui::Checkbox("Draw Head", &g_settings.draw_head);
+        ImGui::Checkbox("Teammates", &g_settings.draw_teammates);
         ImGui::Separator();
 
         // ================================================================

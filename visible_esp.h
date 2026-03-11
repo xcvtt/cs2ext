@@ -30,9 +30,6 @@ public:
 
         ChamsRenderer::draw_chams(draw, p, c, style, depth_scale);
 
-        if (g_settings.draw_skeleton_wire)
-            ChamsRenderer::draw_skeleton(draw, p, c);
-
         if (g_settings.draw_box || g_settings.draw_healthbar ||
             g_settings.draw_health_text || g_settings.draw_name ||
             g_settings.draw_weapon) {

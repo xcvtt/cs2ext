@@ -20,7 +20,7 @@ public:
         write(f, "draw_name", g_settings.draw_name);
         write(f, "draw_weapon", g_settings.draw_weapon);
         write(f, "draw_teammates", g_settings.draw_teammates);
-        write(f, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
+        write(f, "draw_head", g_settings.draw_head);
         write(f, "chams_style", g_settings.chams_style);
         write(f, "esp_use_theme",          g_settings.esp_use_theme);
         write_arr(f, "esp_theme_color",    g_settings.esp_theme_color, 4);
@@ -160,7 +160,7 @@ public:
         read(kv, "draw_name", g_settings.draw_name);
         read(kv, "draw_weapon", g_settings.draw_weapon);
         read(kv, "draw_teammates", g_settings.draw_teammates);
-        read(kv, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
+        read(kv, "draw_head", g_settings.draw_head);
         read(kv, "chams_style", g_settings.chams_style);
         read(kv, "esp_font_index", g_settings.esp_font_index);
         read(kv, "name_position", g_settings.name_position);

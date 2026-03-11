@@ -27,18 +27,11 @@ public:
             ChamsRenderer::draw_skeleton(draw, p, c);
 
         if (g_settings.draw_box || g_settings.draw_healthbar ||
-            g_settings.draw_health_text || g_settings.draw_name) {
+            g_settings.draw_health_text || g_settings.draw_name ||
+            g_settings.draw_weapon) {
             box_renderer.draw_box_hp_name(draw, p, c, idx, is_scoped,
                                           g_overlay.esp_font, g_settings.esp_font_atlas_size);
             }
-    }
-
-    void invalidate_box(int idx) {
-        box_renderer.smoothed_boxes[idx].initialized = false;
-    }
-
-    void reset_smoothing() {
-        box_renderer.reset_smoothing();
     }
 };
 

@@ -4,70 +4,69 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
+#include <cctype>
 #include "types.h"
 #include "settings.h"
 #include "chams_renderer.h"
+#include "weapon_icons.h"
 
 enum class BoxStyle { CORNERS, FULL, DASHED };
 enum class NamePosition { TOP = 0, BOTTOM, LEFT, RIGHT };
 
-struct SmoothedBox {
-    float min_x = 0, min_y = 0, max_x = 0, max_y = 0;
-    bool initialized = false;
-};
-
 class BoxRenderer {
 public:
-    SmoothedBox smoothed_boxes[64];
-
-    void reset_smoothing() {
-        for (auto& b : smoothed_boxes)
-            b.initialized = false;
-    }
+    static constexpr float PLAYER_ASPECT = 0.48f;
 
     void draw_box_hp_name(ImDrawList* d, const PlayerVisuals& p,
                           const ColorSet& c, int idx, bool is_scoped,
                           ImFont* font, float font_size) {
-        float rmin_x = 1e9f, rmin_y = 1e9f, rmax_x = -1e9f, rmax_y = -1e9f;
+        float raw_top = 1e9f, raw_bot = -1e9f;
+        float center_x_sum = 0;
+        int center_cnt = 0;
         float avg_depth = 0;
-        int cnt = 0;
-        for (int b : BOX_STABLE_BONES) {
+        int depth_cnt = 0;
+
+        for (int b : BOX_HEIGHT_BONES) {
             if (!p.visible[b]) continue;
-            rmin_x = std::min(rmin_x, p.screens[b].x);
-            rmin_y = std::min(rmin_y, p.screens[b].y);
-            rmax_x = std::max(rmax_x, p.screens[b].x);
-            rmax_y = std::max(rmax_y, p.screens[b].y);
+            raw_top = std::min(raw_top, p.screens[b].y);
+            raw_bot = std::max(raw_bot, p.screens[b].y);
             avg_depth += p.depths[b];
-            cnt++;
+            depth_cnt++;
         }
-        if (cnt < 3) return;
-        avg_depth /= cnt;
+        if (depth_cnt < 3) return;
+        avg_depth /= depth_cnt;
+
+        static constexpr int CENTER_BONES[] = {
+            BONE_HEAD, BONE_NECK, BONE_SPINE1, BONE_SPINE2, BONE_PELVIS
+        };
+        for (int b : CENTER_BONES) {
+            if (!p.visible[b]) continue;
+            center_x_sum += p.screens[b].x;
+            center_cnt++;
+        }
+        if (center_cnt == 0) return;
+        float center_x = center_x_sum / center_cnt;
 
         float ds = g_settings.depth_scale;
         if (is_scoped) ds *= 2.0f;
-        float pad_x = g_settings.box_padding_x * ds / avg_depth;
+
+        float head_extra = g_settings.head_radius * ds / avg_depth;
         float pad_y = g_settings.box_padding_y * ds / avg_depth;
-        rmin_x -= pad_x;
-        rmax_x += pad_x;
-        rmin_y -= pad_y * 0.6f;
-        rmax_y += pad_y * 0.4f;
+        float pad_x = g_settings.box_padding_x * ds / avg_depth;
 
-        auto& sb = smoothed_boxes[idx];
-        float s = g_settings.box_smoothing;
-        if (!sb.initialized) {
-            sb = {rmin_x, rmin_y, rmax_x, rmax_y, true};
-        } else {
-            sb.min_x = sb.min_x * s + rmin_x * (1 - s);
-            sb.min_y = sb.min_y * s + rmin_y * (1 - s);
-            sb.max_x = sb.max_x * s + rmax_x * (1 - s);
-            sb.max_y = sb.max_y * s + rmax_y * (1 - s);
-            sb.min_x = std::min(sb.min_x, rmin_x);
-            sb.min_y = std::min(sb.min_y, rmin_y);
-            sb.max_x = std::max(sb.max_x, rmax_x);
-            sb.max_y = std::max(sb.max_y, rmax_y);
-        }
+        raw_top -= (head_extra + pad_y);
+        raw_bot += pad_y * 0.5f;
 
-        float x0 = sb.min_x, y0 = sb.min_y, x1 = sb.max_x, y1 = sb.max_y;
+        float height = raw_bot - raw_top;
+        if (height < 4.0f) return;
+
+        float width = height * PLAYER_ASPECT + pad_x * 2.0f;
+
+        float x0 = center_x - width * 0.5f;
+        float x1 = center_x + width * 0.5f;
+        float y0 = raw_top;
+        float y1 = raw_bot;
+
         float box_thick = g_settings.box_thickness;
 
         if (g_settings.draw_box)
@@ -79,36 +78,51 @@ public:
 
         if (g_settings.draw_name && p.name[0] && font)
             draw_name(d, x0, y0, x1, y1, p.name, font, avg_depth);
+
+        if (g_settings.draw_weapon && (p.weapon[0] || p.weapon_def_index) && font)
+            draw_weapon(d, x0, y0, x1, y1, p, font, avg_depth);
     }
 
 private:
     void draw_box(ImDrawList* d, float x0, float y0, float x1, float y1,
                   float box_thick, const ColorSet& c) {
         BoxStyle style = static_cast<BoxStyle>(g_settings.box_style);
-        ImU32 bg = IM_COL32(0, 0, 0, 80);
+
+        x0 = floorf(x0);
+        y0 = floorf(y0);
+        x1 = floorf(x1);
+        y1 = floorf(y1);
 
         switch (style) {
         case BoxStyle::CORNERS: {
             float w = x1 - x0, h = y1 - y0;
-            float corner = std::min(w, h) * g_settings.box_corner_pct;
-            auto corners = [&](ImU32 col, float t) {
-                d->AddLine({x0, y0}, {x0 + corner, y0}, col, t);
-                d->AddLine({x0, y0}, {x0, y0 + corner}, col, t);
-                d->AddLine({x1, y0}, {x1 - corner, y0}, col, t);
-                d->AddLine({x1, y0}, {x1, y0 + corner}, col, t);
-                d->AddLine({x0, y1}, {x0 + corner, y1}, col, t);
-                d->AddLine({x0, y1}, {x0, y1 - corner}, col, t);
-                d->AddLine({x1, y1}, {x1 - corner, y1}, col, t);
-                d->AddLine({x1, y1}, {x1, y1 - corner}, col, t);
+            float raw_corner = std::min(w, h) * g_settings.box_corner_pct;
+            float max_corner = std::min(w, h) * 0.45f;
+            float corner = std::clamp(raw_corner, 2.0f, std::max(max_corner, 2.0f));
+
+            ImU32 bg = IM_COL32(0, 0, 0, 140);
+
+            auto draw_corner = [&](ImVec2 tip, ImVec2 h_end, ImVec2 v_end) {
+                ImVec2 bg_pts[3] = {v_end, tip, h_end};
+                d->AddPolyline(bg_pts, 3, bg, ImDrawFlags_None, box_thick + 2.0f);
+                ImVec2 fg_pts[3] = {v_end, tip, h_end};
+                d->AddPolyline(fg_pts, 3, c.outline, ImDrawFlags_None, box_thick);
             };
-            corners(bg, box_thick + 2);
-            corners(c.outline, box_thick);
+
+            draw_corner({x0, y0}, {x0 + corner, y0}, {x0, y0 + corner});
+            draw_corner({x1, y0}, {x1 - corner, y0}, {x1, y0 + corner});
+            draw_corner({x0, y1}, {x0 + corner, y1}, {x0, y1 - corner});
+            draw_corner({x1, y1}, {x1 - corner, y1}, {x1, y1 - corner});
             break;
         }
-        case BoxStyle::FULL:
-            d->AddRect({x0 - 1, y0 - 1}, {x1 + 1, y1 + 1}, bg, 0, 0, box_thick + 2);
+        case BoxStyle::FULL: {
+            d->AddRect({x0 - 1, y0 - 1}, {x1 + 1, y1 + 1},
+                       IM_COL32(0, 0, 0, 100), 0, 0, 1.0f);
             d->AddRect({x0, y0}, {x1, y1}, c.outline, 0, 0, box_thick);
+            d->AddRect({x0 + 1, y0 + 1}, {x1 - 1, y1 - 1},
+                       IM_COL32(0, 0, 0, 100), 0, 0, 1.0f);
             break;
+        }
         case BoxStyle::DASHED: {
             float dash = 8.0f, gap = 5.0f;
             auto dashed_line = [&](ImVec2 a, ImVec2 b, ImU32 col, float thick) {
@@ -124,6 +138,7 @@ private:
                     pos = end + gap;
                 }
             };
+            ImU32 bg = IM_COL32(0, 0, 0, 100);
             dashed_line({x0, y0}, {x1, y0}, bg, box_thick + 2);
             dashed_line({x1, y0}, {x1, y1}, bg, box_thick + 2);
             dashed_line({x1, y1}, {x0, y1}, bg, box_thick + 2);
@@ -171,9 +186,7 @@ private:
 
         NamePosition pos = static_cast<NamePosition>(g_settings.name_position);
 
-        // Scale the offset by depth so it's consistent at all distances
         float depth_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
-        // Clamp so it doesn't go crazy at very close range
         depth_factor = std::clamp(depth_factor, 0.3f, 3.0f);
 
         float base_gap = 3.0f * depth_factor;
@@ -210,5 +223,89 @@ private:
         if (g_settings.name_shadow)
             d->AddText(font, name_fs, {nx + 1, ny + 1}, shadow_col, name);
         d->AddText(font, name_fs, {nx, ny}, text_col, name);
+    }
+
+    void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
+                     const PlayerVisuals& p, ImFont* font, float avg_depth) {
+        float raw_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
+        raw_factor = std::clamp(raw_factor, 0.1f, 3.0f);
+        float dropoff = g_settings.weapon_distance_dropoff;
+        float scale = 1.0f + (raw_factor - 1.0f) * dropoff;
+        scale = std::clamp(scale, 0.4f, 2.0f);
+
+        float wep_fs = g_settings.weapon_font_size * scale;
+        wep_fs = std::clamp(wep_fs, 5.0f, g_settings.weapon_font_size * 1.8f);
+
+        float gap = 2.0f;
+        float wy = y1 + gap;
+
+        if (g_settings.draw_name && g_settings.name_position == 1) {
+            wy += g_settings.name_font_size + 2.0f;
+        }
+
+        float center_x = (x0 + x1) * 0.5f;
+        float total_width = 0;
+
+        bool show_icon = g_settings.weapon_show_icon && p.weapon_def_index > 0;
+        bool show_text = g_settings.weapon_show_text && p.weapon[0];
+
+        if (!show_icon && !show_text) return;
+
+        float icon_w = 0, icon_h = 0;
+        float text_w = 0;
+        float icon_spacing = 2.0f * scale;
+
+        char wep_lower[64];
+        {
+            const char* src = p.weapon;
+            int i = 0;
+            for (; src[i] && i < 63; i++)
+                wep_lower[i] = (char)tolower((unsigned char)src[i]);
+            wep_lower[i] = 0;
+        }
+
+        ImTextureID icon_tex = nullptr;
+        if (show_icon) {
+            icon_tex = g_weapon_icons.get_icon(p.weapon_def_index);
+            if (icon_tex) {
+                icon_h = wep_fs + 2.0f * scale;
+                float aspect = g_weapon_icons.get_icon_aspect(p.weapon_def_index);
+                icon_w = icon_h * aspect;
+                total_width += icon_w;
+                if (show_text) total_width += icon_spacing;
+            } else {
+                show_icon = false;
+            }
+        }
+
+        if (show_text) {
+            ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0, wep_lower);
+            text_w = ts.x;
+            total_width += text_w;
+        }
+
+        float draw_x = center_x - total_width * 0.5f;
+
+        ImU32 shadow_col = float4_to_col(g_settings.weapon_shadow_color);
+        ImU32 text_col = float4_to_col(g_settings.weapon_color);
+        ImU32 icon_col = float4_to_col(g_settings.weapon_icon_color);
+
+        if (show_icon && icon_tex) {
+            ImVec2 icon_min = {draw_x, wy};
+            ImVec2 icon_max = {draw_x + icon_w, wy + icon_h};
+            d->AddImage(icon_tex, icon_min, icon_max, {0, 0}, {1, 1}, icon_col);
+            draw_x += icon_w + icon_spacing;
+        }
+
+        if (show_text) {
+            float text_y = wy;
+            if (show_icon) {
+                ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0, wep_lower);
+                text_y = wy + (icon_h - ts.y) * 0.5f;
+            }
+            if (g_settings.weapon_shadow)
+                d->AddText(font, wep_fs, {draw_x + 1, text_y + 1}, shadow_col, wep_lower);
+            d->AddText(font, wep_fs, {draw_x, text_y}, text_col, wep_lower);
+        }
     }
 };

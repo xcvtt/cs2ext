@@ -18,6 +18,7 @@ public:
         write(f, "draw_healthbar", g_settings.draw_healthbar);
         write(f, "draw_health_text", g_settings.draw_health_text);
         write(f, "draw_name", g_settings.draw_name);
+        write(f, "draw_weapon", g_settings.draw_weapon);
         write(f, "draw_teammates", g_settings.draw_teammates);
         write(f, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         write(f, "chams_style", g_settings.chams_style);
@@ -39,6 +40,16 @@ public:
         write_arr(f, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
         write(f, "hp_text_shadow", g_settings.hp_text_shadow);
         write(f, "hp_font_size", g_settings.hp_font_size);
+
+        f << "\n[Weapon]\n";
+        write_arr(f, "weapon_color", g_settings.weapon_color, 4);
+        write_arr(f, "weapon_shadow_color", g_settings.weapon_shadow_color, 4);
+        write_arr(f, "weapon_icon_color", g_settings.weapon_icon_color, 4);
+        write(f, "weapon_shadow", g_settings.weapon_shadow);
+        write(f, "weapon_font_size", g_settings.weapon_font_size);
+        write(f, "weapon_show_icon", g_settings.weapon_show_icon);
+        write(f, "weapon_show_text", g_settings.weapon_show_text);
+        write(f, "weapon_distance_dropoff", g_settings.weapon_distance_dropoff);
 
         f << "\n[Spectators]\n";
         write(f, "draw_spectators", g_settings.draw_spectators);
@@ -76,7 +87,6 @@ public:
 
         f << "\n[Misc]\n";
         write(f, "target_fps", g_settings.target_fps);
-        write(f, "box_smoothing", g_settings.box_smoothing);
 
         f << "\n[Box]\n";
         write(f, "box_style", g_settings.box_style);
@@ -140,12 +150,11 @@ public:
         read(kv, "draw_healthbar", g_settings.draw_healthbar);
         read(kv, "draw_health_text", g_settings.draw_health_text);
         read(kv, "draw_name", g_settings.draw_name);
+        read(kv, "draw_weapon", g_settings.draw_weapon);
         read(kv, "draw_teammates", g_settings.draw_teammates);
         read(kv, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         read(kv, "chams_style", g_settings.chams_style);
-
         read(kv, "esp_font_index", g_settings.esp_font_index);
-
         read(kv, "name_position", g_settings.name_position);
         read(kv, "name_offset_x", g_settings.name_offset_x);
         read(kv, "name_offset_y", g_settings.name_offset_y);
@@ -153,16 +162,21 @@ public:
         read_arr(kv, "name_shadow_color", g_settings.name_shadow_color, 4);
         read(kv, "name_shadow", g_settings.name_shadow);
         read(kv, "name_font_size", g_settings.name_font_size);
-
         read_arr(kv, "hp_text_color", g_settings.hp_text_color, 4);
         read_arr(kv, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
         read(kv, "hp_text_shadow", g_settings.hp_text_shadow);
         read(kv, "hp_font_size", g_settings.hp_font_size);
-
+        read_arr(kv, "weapon_color", g_settings.weapon_color, 4);
+        read_arr(kv, "weapon_shadow_color", g_settings.weapon_shadow_color, 4);
+        read_arr(kv, "weapon_icon_color", g_settings.weapon_icon_color, 4);
+        read(kv, "weapon_shadow", g_settings.weapon_shadow);
+        read(kv, "weapon_font_size", g_settings.weapon_font_size);
+        read(kv, "weapon_show_icon", g_settings.weapon_show_icon);
+        read(kv, "weapon_show_text", g_settings.weapon_show_text);
+        read(kv, "weapon_distance_dropoff", g_settings.weapon_distance_dropoff);
         read(kv, "draw_spectators", g_settings.draw_spectators);
         read(kv, "spec_x", g_settings.spec_x);
         read(kv, "spec_y", g_settings.spec_y);
-
         read(kv, "draw_radar", g_settings.draw_radar);
         read(kv, "radar_circle", g_settings.radar_circle);
         read(kv, "radar_rotate", g_settings.radar_rotate);
@@ -175,29 +189,23 @@ public:
         read(kv, "radar_y", g_settings.radar_y);
         read_arr(kv, "radar_enemy_color", g_settings.radar_enemy_color, 4);
         read_arr(kv, "radar_team_color", g_settings.radar_team_color, 4);
-
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
         read_arr(kv, "enemy_glow", g_settings.enemy_glow, 4);
         read_arr(kv, "team_fill", g_settings.team_fill, 4);
         read_arr(kv, "team_outline", g_settings.team_outline, 4);
         read_arr(kv, "team_glow", g_settings.team_glow, 4);
-
         read(kv, "body_width_scale", g_settings.body_width_scale);
         read(kv, "head_radius", g_settings.head_radius);
         read(kv, "depth_scale", g_settings.depth_scale);
         read(kv, "glow_expand_outer", g_settings.glow_expand_outer);
         read(kv, "glow_expand_inner", g_settings.glow_expand_inner);
-
         read(kv, "target_fps", g_settings.target_fps);
-        read(kv, "box_smoothing", g_settings.box_smoothing);
-
         read(kv, "box_style", g_settings.box_style);
         read(kv, "box_thickness", g_settings.box_thickness);
         read(kv, "box_padding_x", g_settings.box_padding_x);
         read(kv, "box_padding_y", g_settings.box_padding_y);
         read(kv, "box_corner_pct", g_settings.box_corner_pct);
-
         read(kv, "crosshair_enabled", g_settings.crosshair_enabled);
         read(kv, "crosshair_shape", g_settings.crosshair_shape);
         read(kv, "crosshair_size", g_settings.crosshair_size);
@@ -209,14 +217,11 @@ public:
         read_arr(kv, "crosshair_outline_color", g_settings.crosshair_outline_color, 4);
         read(kv, "crosshair_dot", g_settings.crosshair_dot);
         read(kv, "crosshair_dot_size", g_settings.crosshair_dot_size);
-
         read(kv, "menu_x", g_settings.menu_x);
         read(kv, "menu_y", g_settings.menu_y);
-
         read(kv, "key_menu", g_settings.key_menu);
         read(kv, "key_master", g_settings.key_master);
         read(kv, "key_exit", g_settings.key_exit);
-
         read_arr(kv, "menu_accent_color", g_settings.menu_accent_color, 4);
         read(kv, "menu_bg_alpha", g_settings.menu_bg_alpha);
         read_arr(kv, "menu_border_color", g_settings.menu_border_color, 4);
@@ -233,47 +238,26 @@ private:
         if (start == std::string::npos) return "";
         return s.substr(start, end - start + 1);
     }
-
-    static void write(std::ofstream& f, const char* key, bool v) {
-        f << key << " = " << (v ? 1 : 0) << "\n";
-    }
-    static void write(std::ofstream& f, const char* key, int v) {
-        f << key << " = " << v << "\n";
-    }
-    static void write(std::ofstream& f, const char* key, float v) {
-        f << key << " = " << v << "\n";
-    }
+    static void write(std::ofstream& f, const char* key, bool v) { f << key << " = " << (v ? 1 : 0) << "\n"; }
+    static void write(std::ofstream& f, const char* key, int v) { f << key << " = " << v << "\n"; }
+    static void write(std::ofstream& f, const char* key, float v) { f << key << " = " << v << "\n"; }
     static void write_arr(std::ofstream& f, const char* key, const float* v, int n) {
         f << key << " = ";
-        for (int i = 0; i < n; i++) {
-            if (i) f << ",";
-            f << v[i];
-        }
+        for (int i = 0; i < n; i++) { if (i) f << ","; f << v[i]; }
         f << "\n";
     }
-
-    static void read(const std::unordered_map<std::string, std::string>& kv,
-                     const char* key, bool& v) {
-        auto it = kv.find(key);
-        if (it != kv.end()) v = (std::stoi(it->second) != 0);
+    static void read(const std::unordered_map<std::string, std::string>& kv, const char* key, bool& v) {
+        auto it = kv.find(key); if (it != kv.end()) v = (std::stoi(it->second) != 0);
     }
-    static void read(const std::unordered_map<std::string, std::string>& kv,
-                     const char* key, int& v) {
-        auto it = kv.find(key);
-        if (it != kv.end()) v = std::stoi(it->second);
+    static void read(const std::unordered_map<std::string, std::string>& kv, const char* key, int& v) {
+        auto it = kv.find(key); if (it != kv.end()) v = std::stoi(it->second);
     }
-    static void read(const std::unordered_map<std::string, std::string>& kv,
-                     const char* key, float& v) {
-        auto it = kv.find(key);
-        if (it != kv.end()) v = std::stof(it->second);
+    static void read(const std::unordered_map<std::string, std::string>& kv, const char* key, float& v) {
+        auto it = kv.find(key); if (it != kv.end()) v = std::stof(it->second);
     }
-    static void read_arr(const std::unordered_map<std::string, std::string>& kv,
-                         const char* key, float* v, int n) {
-        auto it = kv.find(key);
-        if (it == kv.end()) return;
-        std::istringstream ss(it->second);
-        std::string token;
-        for (int i = 0; i < n && std::getline(ss, token, ','); i++)
-            v[i] = std::stof(token);
+    static void read_arr(const std::unordered_map<std::string, std::string>& kv, const char* key, float* v, int n) {
+        auto it = kv.find(key); if (it == kv.end()) return;
+        std::istringstream ss(it->second); std::string token;
+        for (int i = 0; i < n && std::getline(ss, token, ','); i++) v[i] = std::stof(token);
     }
 };

@@ -30,7 +30,7 @@ target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_D
 
 
 add_executable(${PROJECT_NAME} main.cpp)
-target_link_libraries(${PROJECT_NAME} imgui_lib nlohmann_json::nlohmann_json d3d11 d3dcompiler dwmapi)
+target_link_libraries(${PROJECT_NAME} imgui_lib nlohmann_json::nlohmann_json d3d11 d3dcompiler dwmapi windowscodecs ole32)
 
 target_link_options(cs2ext PRIVATE
         -static-libgcc

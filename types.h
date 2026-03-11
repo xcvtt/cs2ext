@@ -28,48 +28,46 @@ static constexpr BoneConn SKELETON_CONNECTIONS[] = {
     {BONE_PELVIS, BONE_RHIP}, {BONE_RHIP, BONE_RKNEE}, {BONE_RKNEE, BONE_RFOOT},
 };
 
-// Anatomical limb definitions with natural width proportions
-// width_a = width at bone_a end, width_b = width at bone_b end (in world units)
 struct LimbDef {
     int bone_a, bone_b;
-    float width_a, width_b;  // base widths before scaling
+    float width_a, width_b;
 };
 
-// Proportions based on CS2 character model anatomy
-// Torso is wider, limbs taper toward extremities
 static constexpr LimbDef BODY_LIMBS[] = {
-    // Torso (wider, barrel-shaped)
-    {BONE_NECK,    BONE_SPINE1,  7.0f, 8.0f},   // upper chest
-    {BONE_SPINE1,  BONE_SPINE2,  8.0f, 7.5f},    // lower chest
-    {BONE_SPINE2,  BONE_PELVIS,  7.5f, 7.0f},    // abdomen
-
-    // Arms (taper from shoulder to hand)
-    {BONE_LSHOULDER, BONE_LELBOW, 3.8f, 3.2f},   // left upper arm
-    {BONE_LELBOW,    BONE_LHAND,  3.2f, 2.2f},    // left forearm
-    {BONE_RSHOULDER, BONE_RELBOW, 3.8f, 3.2f},    // right upper arm
-    {BONE_RELBOW,    BONE_RHAND,  3.2f, 2.2f},    // right forearm
-
-    // Legs (thicker at thigh, taper to ankle)
-    {BONE_LHIP,  BONE_LKNEE,  5.0f, 3.8f},       // left thigh
-    {BONE_LKNEE, BONE_LFOOT,  3.8f, 2.8f},        // left shin
-    {BONE_RHIP,  BONE_RKNEE,  5.0f, 3.8f},        // right thigh
-    {BONE_RKNEE, BONE_RFOOT,  3.8f, 2.8f},        // right shin
-
-    // Shoulder bridges (connect neck to shoulders)
-    {BONE_NECK, BONE_LSHOULDER, 4.0f, 3.8f},
-    {BONE_NECK, BONE_RSHOULDER, 4.0f, 3.8f},
-
-    // Hip bridges (connect pelvis to hips)
-    {BONE_PELVIS, BONE_LHIP, 5.5f, 5.0f},
-    {BONE_PELVIS, BONE_RHIP, 5.5f, 5.0f},
+    {BONE_NECK,    BONE_SPINE1,  8.5f, 10.0f},
+    {BONE_SPINE1,  BONE_SPINE2,  10.0f, 9.5f},
+    {BONE_SPINE2,  BONE_PELVIS,  9.5f,  9.0f},
+    {BONE_LSHOULDER, BONE_LELBOW, 4.5f, 3.8f},
+    {BONE_LELBOW,    BONE_LHAND,  3.8f, 2.8f},
+    {BONE_RSHOULDER, BONE_RELBOW, 4.5f, 3.8f},
+    {BONE_RELBOW,    BONE_RHAND,  3.8f, 2.8f},
+    {BONE_LHIP,  BONE_LKNEE,  6.0f, 4.5f},
+    {BONE_LKNEE, BONE_LFOOT,  4.5f, 3.2f},
+    {BONE_RHIP,  BONE_RKNEE,  6.0f, 4.5f},
+    {BONE_RKNEE, BONE_RFOOT,  4.5f, 3.2f},
+    {BONE_NECK, BONE_LSHOULDER, 5.0f, 4.5f},
+    {BONE_NECK, BONE_RSHOULDER, 5.0f, 4.5f},
+    {BONE_PELVIS, BONE_LHIP, 7.0f, 6.0f},
+    {BONE_PELVIS, BONE_RHIP, 7.0f, 6.0f},
 };
 static constexpr int BODY_LIMB_COUNT = sizeof(BODY_LIMBS) / sizeof(BODY_LIMBS[0]);
 
-// Bones used for bounding box calculation
-static constexpr int BOX_STABLE_BONES[] = {
+// Vertical bones for height measurement (head to feet)
+static constexpr int BOX_HEIGHT_BONES[] = {
     BONE_HEAD, BONE_NECK, BONE_SPINE1, BONE_SPINE2, BONE_PELVIS,
-    BONE_LSHOULDER, BONE_RSHOULDER, BONE_LHIP, BONE_RHIP,
+    BONE_LHIP, BONE_RHIP, BONE_LKNEE, BONE_RKNEE,
+    BONE_LFOOT, BONE_RFOOT,
+};
+
+// All bones for width reference only (used to detect lateral extent ratio)
+static constexpr int BOX_ALL_BONES[] = {
+    BONE_HEAD, BONE_NECK, BONE_SPINE1, BONE_SPINE2, BONE_PELVIS,
+    BONE_LSHOULDER, BONE_RSHOULDER,
+    BONE_LELBOW, BONE_RELBOW,
+    BONE_LHAND, BONE_RHAND,
+    BONE_LHIP, BONE_RHIP,
     BONE_LKNEE, BONE_RKNEE,
+    BONE_LFOOT, BONE_RFOOT,
 };
 
 struct PlayerVisuals {
@@ -80,6 +78,8 @@ struct PlayerVisuals {
     int health = 0;
     bool valid = false;
     char name[128]{};
+    char weapon[64]{};
+    uint16_t weapon_def_index = 0;
     Vec3 origin{};
 };
 

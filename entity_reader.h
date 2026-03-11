@@ -6,6 +6,86 @@
 #include "offsets.h"
 #include "entity_utils.h"
 
+struct WeaponInfo {
+    uint16_t def_index;
+    const char* name;
+};
+
+static constexpr WeaponInfo WEAPON_TABLE[] = {
+    {1,   "Desert Eagle"},
+    {2,   "Dual Berettas"},
+    {3,   "Five-SeveN"},
+    {4,   "Glock-18"},
+    {7,   "AK-47"},
+    {8,   "AUG"},
+    {9,   "AWP"},
+    {10,  "FAMAS"},
+    {11,  "G3SG1"},
+    {13,  "Galil AR"},
+    {14,  "M249"},
+    {16,  "M4A4"},
+    {17,  "MAC-10"},
+    {19,  "P90"},
+    {23,  "MP5-SD"},
+    {24,  "UMP-45"},
+    {25,  "XM1014"},
+    {26,  "PP-Bizon"},
+    {27,  "MAG-7"},
+    {28,  "Negev"},
+    {29,  "Sawed-Off"},
+    {30,  "Tec-9"},
+    {31,  "Zeus x27"},
+    {32,  "P2000"},
+    {33,  "MP7"},
+    {34,  "MP9"},
+    {35,  "Nova"},
+    {36,  "P250"},
+    {38,  "SCAR-20"},
+    {39,  "SG 553"},
+    {40,  "SSG 08"},
+    {42,  "Knife"},
+    {43,  "Flashbang"},
+    {44,  "HE Grenade"},
+    {45,  "Smoke"},
+    {46,  "Molotov"},
+    {47,  "Decoy"},
+    {48,  "Incendiary"},
+    {49,  "C4"},
+    {59,  "Knife"},
+    {60,  "M4A1-S"},
+    {61,  "USP-S"},
+    {63,  "CZ75-Auto"},
+    {64,  "R8 Revolver"},
+    {500, "Bayonet"},
+    {503, "Shadow Daggers"},
+    {505, "Flip Knife"},
+    {506, "Gut Knife"},
+    {507, "Karambit"},
+    {508, "M9 Bayonet"},
+    {509, "Huntsman Knife"},
+    {512, "Falchion Knife"},
+    {514, "Bowie Knife"},
+    {515, "Butterfly Knife"},
+    {516, "Ursus Knife"},
+    {517, "Navaja Knife"},
+    {518, "Stiletto Knife"},
+    {519, "Talon Knife"},
+    {520, "Skeleton Knife"},
+    {521, "Nomad Knife"},
+    {522, "Survival Knife"},
+    {523, "Paracord Knife"},
+    {525, "Classic Knife"},
+    {526, "Kukri Knife"},
+};
+static constexpr int WEAPON_TABLE_SIZE = sizeof(WEAPON_TABLE) / sizeof(WEAPON_TABLE[0]);
+
+inline const WeaponInfo* lookup_weapon(uint16_t def_index) {
+    for (int i = 0; i < WEAPON_TABLE_SIZE; i++)
+        if (WEAPON_TABLE[i].def_index == def_index)
+            return &WEAPON_TABLE[i];
+    return nullptr;
+}
+
 struct LocalPlayerState {
     uintptr_t pawn = 0;
     uintptr_t controller = 0;
@@ -73,6 +153,30 @@ public:
 private:
     CBoneData bone_buf[MAX_BONE];
 
+    void read_weapon(uintptr_t pawn, char* out_name, size_t max_len, uint16_t& out_def_index) {
+        out_name[0] = 0;
+        out_def_index = 0;
+
+        uintptr_t weapon = g_memory.read<uintptr_t>(
+            pawn + g_offsets.C_CSPlayerPawnBase.m_pClippingWeapon);
+        if (!weapon) return;
+
+        uint16_t def_index = g_memory.read<uint16_t>(
+            weapon + g_offsets.C_EconEntity.m_AttributeManager
+                   + g_offsets.C_AttributeContainer.m_Item
+                   + g_offsets.C_EconItemView.m_iItemDefinitionIndex);
+
+        if (def_index == 0) return;
+        out_def_index = def_index;
+
+        const WeaponInfo* info = lookup_weapon(def_index);
+        if (info) {
+            snprintf(out_name, max_len, "%s", info->name);
+        } else {
+            snprintf(out_name, max_len, "Weapon %d", def_index);
+        }
+    }
+
     void read_player(FrameState& state, uintptr_t first_page, int i,
                      int screen_w, int screen_h) {
         uintptr_t controller = g_memory.read<uintptr_t>(
@@ -111,6 +215,8 @@ private:
         player.health = health;
         player.origin = origin;
         memcpy(player.name, name, 128);
+
+        read_weapon(pawn, player.weapon, sizeof(player.weapon), player.weapon_def_index);
 
         for (int b = 0; b < MAX_BONE; b++)
             player.visible[b] = w2s_depth(

@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <wincodec.h>
 #include <cstdio>
 #include <chrono>
 #include <csignal>
@@ -13,6 +14,7 @@
 #include "menu.h"
 #include "crosshair.h"
 #include "overlay.h"
+#include "weapon_icons.h"
 #include "entity_reader.h"
 #include "visible_esp.h"
 #include "spectators.h"
@@ -38,7 +40,8 @@ static BOOL WINAPI console_handler(DWORD event) {
 }
 
 int main() {
-    // Register graceful shutdown handlers
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
     SetConsoleCtrlHandler(console_handler, TRUE);
     std::atexit(save_and_exit);
 
@@ -47,19 +50,25 @@ int main() {
 
     if (!g_memory.attach(L"cs2.exe")) {
         printf("cs2.exe not found\n");
+        CoUninitialize();
         return 1;
     }
     printf("[+] Attached (client.dll @ 0x%llX)\n", g_memory.get_client_base());
 
     if (!g_offsets.load("offsets/offsets.json", "offsets/client_dll.json")) {
         printf("Failed to load offsets\n");
+        CoUninitialize();
         return 1;
     }
 
     if (!g_overlay.init(L"Counter-Strike 2")) {
         printf("Overlay failed\n");
+        CoUninitialize();
         return 1;
     }
+
+    g_weapon_icons.init(g_overlay.get_device());
+
     printf("[+] %s = menu | %s = master toggle | %s = exit\n",
            vk_name(g_settings.key_menu),
            vk_name(g_settings.key_master),
@@ -74,10 +83,8 @@ int main() {
     while (g_running) {
         auto frame_start = std::chrono::high_resolution_clock::now();
 
-        // Check exit key
         if (GetAsyncKeyState(g_settings.key_exit) & 1) break;
 
-        // Input with customizable keys
         if (GetAsyncKeyState(g_settings.key_menu) & 1) g_menu.toggle();
         if (GetAsyncKeyState(g_settings.key_master) & 1)
             g_settings.master_switch = !g_settings.master_switch;
@@ -109,8 +116,6 @@ int main() {
         ImDrawList* draw = ImGui::GetBackgroundDrawList();
 
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
-            if (!state.players[i].valid)
-                g_esp.invalidate_box(i);
             g_esp.draw_player(draw, state.players[i], state.local.team,
                               g_overlay.width, g_overlay.height, i, state.local.is_scoped);
         }
@@ -141,7 +146,8 @@ int main() {
         limit_frame(frame_start, g_settings.target_fps);
     }
 
-    // save_and_exit() is called via atexit
+    g_weapon_icons.shutdown();
     g_overlay.shutdown();
+    CoUninitialize();
     return 0;
 }

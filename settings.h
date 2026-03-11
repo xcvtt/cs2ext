@@ -8,13 +8,14 @@ struct MenuSettings {
     bool draw_healthbar = true;
     bool draw_health_text = true;
     bool draw_name = true;
+    bool draw_weapon = true;
     bool draw_teammates = false;
     bool draw_skeleton_wire = false;
     bool draw_spectators = true;
     bool draw_radar = true;
     int chams_style = 0;
 
-    float target_fps = 1000.0f;
+    float target_fps = 500.0f;
 
     float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.3f};
     float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.35f};
@@ -28,7 +29,6 @@ struct MenuSettings {
     float depth_scale = 500.0f;
     float glow_expand_outer = 6.0f;
     float glow_expand_inner = 3.0f;
-    float box_smoothing = 0.5f;
 
     bool menu_open = true;
 
@@ -70,8 +70,18 @@ struct MenuSettings {
     bool hp_text_shadow = true;
     float hp_font_size = 13.0f;
 
+    // Weapon ESP
+    float weapon_color[4] = {0.8f, 0.8f, 0.8f, 0.85f};
+    float weapon_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.5f};
+    float weapon_icon_color[4] = {1.0f, 1.0f, 1.0f, 0.9f};
+    bool weapon_shadow = true;
+    float weapon_font_size = 11.0f;
+    bool weapon_show_icon = true;
+    bool weapon_show_text = true;
+    float weapon_distance_dropoff = 0.3f;
+
     // Spectator list position
-    float spec_x = -1.0f;  // -1 = auto (right side)
+    float spec_x = -1.0f;
     float spec_y = 30.0f;
 
     // Crosshair
@@ -98,7 +108,7 @@ struct MenuSettings {
     float menu_border_color[4] = {0.0f, 1.0f, 0.65f, 0.3f};
 
     // Menu font
-    int menu_font_index = 1;    // index into menu font list
+    int menu_font_index = 1;
     float menu_font_size = 15.0f;
 
     // Key binds

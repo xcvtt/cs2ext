@@ -29,9 +29,11 @@ public:
     ImFont* menu_font = nullptr;
     ImFont* menu_title_font = nullptr;
 
-    std::vector<FontEntry> available_fonts;      // ESP fonts
-    std::vector<FontEntry> menu_fonts;            // Menu fonts
+    std::vector<FontEntry> available_fonts;
+    std::vector<FontEntry> menu_fonts;
     bool font_rebuild_needed = false;
+
+    ID3D11Device* get_device() const { return device; }
 
     bool init(const wchar_t* target_window) {
         game_hwnd = FindWindowW(nullptr, target_window);
@@ -114,7 +116,6 @@ public:
         ImGui_ImplDX11_InvalidateDeviceObjects();
         io.Fonts->Clear();
 
-        // Menu font
         const char* mf_path = get_menu_font_path();
         float mf_size = g_settings.menu_font_size;
 
@@ -134,7 +135,6 @@ public:
         if (!menu_font) menu_font = default_font;
         if (!menu_title_font) menu_title_font = default_font;
 
-        // Spec font: fixed small, uses menu font file
         ImFontConfig spec_cfg;
         spec_cfg.OversampleH = 2;
         spec_cfg.OversampleV = 1;
@@ -142,8 +142,8 @@ public:
             spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
 
-        // ESP font
-        float atlas_size = std::max({g_settings.name_font_size, g_settings.hp_font_size, 14.0f});
+        float atlas_size = std::max({g_settings.name_font_size, g_settings.hp_font_size,
+                                     g_settings.weapon_font_size, 14.0f});
         atlas_size = std::min(atlas_size + 4.0f, 32.0f);
         g_settings.esp_font_atlas_size = atlas_size;
 
@@ -156,7 +156,6 @@ public:
         if (esp_path)
             esp_font = io.Fonts->AddFontFromFileTTF(esp_path, atlas_size, &esp_cfg, get_glyph_ranges());
         if (!esp_font) {
-            // Fallback to Arial
             const char* fb = find_system_font("arial.ttf");
             if (fb) esp_font = io.Fonts->AddFontFromFileTTF(fb, atlas_size, &esp_cfg, get_glyph_ranges());
         }
@@ -359,8 +358,6 @@ private:
         GetWindowsDirectoryA(font_dir, MAX_PATH);
         std::string fd = std::string(font_dir) + "\\Fonts\\";
 
-        // ===== Menu fonts =====
-        // Local Fira Code variants (from fonts/ folder)
         struct LocalFont { const char* display; const char* path; };
         static const LocalFont fira_variants[] = {
             {"Fira Code Light",    "fonts/FiraCode-Light.ttf"},
@@ -374,7 +371,6 @@ private:
                 menu_fonts.push_back({fv.display, fv.path});
         }
 
-        // System fonts for menu
         struct SysFont { const char* display; const char* filename; };
         static const SysFont menu_sys[] = {
             {"Consolas",        "consola.ttf"},
@@ -401,8 +397,6 @@ private:
             g_settings.menu_font_index >= (int)menu_fonts.size())
             g_settings.menu_font_index = 0;
 
-        // ===== ESP fonts =====
-        // Put Arial first as default
         static const SysFont esp_sys[] = {
             {"Arial",              "arial.ttf"},
             {"Arial Bold",         "arialbd.ttf"},
@@ -423,7 +417,6 @@ private:
             {"Verdana Bold",       "verdanab.ttf"},
         };
 
-        // Local Fira Code for ESP too
         for (const auto& fv : fira_variants) {
             if (file_exists(fv.path))
                 available_fonts.push_back({fv.display, fv.path});
@@ -479,7 +472,6 @@ private:
         ImGui_ImplWin32_Init(overlay_hwnd);
         ImGui_ImplDX11_Init(device, context);
 
-        // Build all fonts via rebuild_fonts
         rebuild_fonts();
         apply_menu_style();
     }

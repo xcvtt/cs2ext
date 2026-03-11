@@ -4,7 +4,7 @@
 #include <Windows.h>
 
 inline void limit_frame(std::chrono::high_resolution_clock::time_point frame_start,
-                        double target_fps = 60.0) {
+                        double target_fps) {
     using namespace std::chrono;
     nanoseconds target(static_cast<long long>(1'000'000'000.0 / target_fps));
     nanoseconds remaining = target - (high_resolution_clock::now() - frame_start);
@@ -12,8 +12,7 @@ inline void limit_frame(std::chrono::high_resolution_clock::time_point frame_sta
         nanoseconds sleep_time = remaining - milliseconds(2);
         if (sleep_time > nanoseconds::zero())
             std::this_thread::sleep_for(sleep_time);
-        while (high_resolution_clock::now() - frame_start < target) {
-        }
+        while (high_resolution_clock::now() - frame_start < target) {}
     }
 }
 
@@ -62,18 +61,13 @@ inline const char* vk_name(int vk) {
     }
 }
 
-// Scan for any key press (for key binding)
 inline int scan_any_key() {
-    // Check F1-F12
     for (int k = VK_F1; k <= VK_F12; k++)
         if (GetAsyncKeyState(k) & 1) return k;
-    // Check Insert, Delete, Home, End, PageUp, PageDown
     for (int k : {VK_INSERT, VK_DELETE, VK_HOME, VK_END, VK_PRIOR, VK_NEXT})
         if (GetAsyncKeyState(k) & 1) return k;
-    // Mouse buttons
     for (int k : {VK_XBUTTON1, VK_XBUTTON2, VK_MBUTTON})
         if (GetAsyncKeyState(k) & 1) return k;
-    // Escape cancels
     if (GetAsyncKeyState(VK_ESCAPE) & 1) return -1;
     return 0;
 }

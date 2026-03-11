@@ -38,9 +38,20 @@ struct Offsets {
     struct {
         uint32_t m_vecViewOffset;
     } C_BaseModelEntity;
+    struct {
+        uint32_t m_pClippingWeapon;
+    } C_CSPlayerPawnBase;
+    struct {
+        uint32_t m_AttributeManager;
+    } C_EconEntity;
+    struct {
+        uint32_t m_Item;
+    } C_AttributeContainer;
+    struct {
+        uint32_t m_iItemDefinitionIndex;
+    } C_EconItemView;
 
     bool load(const std::string& offsets_path, const std::string& client_dll_path) {
-        // Check if offset files exist
         if (!std::filesystem::exists(offsets_path) ||
             !std::filesystem::exists(client_dll_path)) {
             printf("[!] Offset files not found, running cs2-dumper...\n");
@@ -56,7 +67,6 @@ struct Offsets {
             }
         }
 
-        // Functional validation: actually try to read game data
         auto result = functional_test();
         if (result == TestResult::OFFSETS_WRONG) {
             printf("[!] Offsets are outdated (can't read valid game data). Running cs2-dumper...\n");
@@ -125,6 +135,16 @@ private:
             C_BaseModelEntity.m_vecViewOffset =
                 cs["C_BaseModelEntity"]["fields"]["m_vecViewOffset"];
 
+            // Weapon reading offsets
+            C_CSPlayerPawnBase.m_pClippingWeapon =
+                cs["C_CSPlayerPawn"]["fields"]["m_pClippingWeapon"];
+            C_EconEntity.m_AttributeManager =
+                cs["C_EconEntity"]["fields"]["m_AttributeManager"];
+            C_AttributeContainer.m_Item =
+                cs["C_AttributeContainer"]["fields"]["m_Item"];
+            C_EconItemView.m_iItemDefinitionIndex =
+                cs["C_EconItemView"]["fields"]["m_iItemDefinitionIndex"];
+
             return true;
         } catch (const std::exception& e) {
             printf("[!] Offset parse error: %s\n", e.what());
@@ -132,8 +152,6 @@ private:
         }
     }
 
-    // Actually try to read game data to verify offsets work.
-    // This catches stale offsets that parse fine but point to wrong memory.
     TestResult functional_test() {
         uintptr_t client_base = g_memory.get_client_base();
         if (!client_base) {
@@ -141,21 +159,17 @@ private:
             return TestResult::OFFSETS_WRONG;
         }
 
-        // Test 1: Can we read the entity list pointer?
         uintptr_t entity_list = g_memory.read<uintptr_t>(client_base + client.dwEntityList);
         if (!entity_list) {
             printf("[!] entity_list is null (offset 0x%X)\n", client.dwEntityList);
             return TestResult::OFFSETS_WRONG;
         }
 
-        // Test 2: Can we read the first page of the entity list?
         uintptr_t first_page = g_memory.read<uintptr_t>(entity_list + 16);
         if (!first_page) {
-            // Could be no players loaded yet (main menu)
             return TestResult::NO_PLAYERS;
         }
 
-        // Test 3: Try to find at least one valid player with a sane team number
         int valid_players = 0;
         int bogus_reads = 0;
 
@@ -163,7 +177,6 @@ private:
             uintptr_t controller = g_memory.read<uintptr_t>(first_page + 112 * (i & 0x1FF));
             if (!controller) continue;
 
-            // Try to read the pawn handle
             uint32_t pawn_handle = g_memory.read<uint32_t>(
                 controller + CCSPlayerController.m_hPawn);
             if (!pawn_handle) {
@@ -172,7 +185,6 @@ private:
             }
             if (!pawn_handle) continue;
 
-            // Resolve pawn
             uintptr_t pawn_page = g_memory.read<uintptr_t>(
                 entity_list + 8 * ((pawn_handle & 0x7FFF) >> 9) + 16);
             if (!pawn_page) continue;
@@ -181,13 +193,10 @@ private:
                 pawn_page + 112 * (pawn_handle & 0x1FF));
             if (!pawn) continue;
 
-            // Read team and health — these must make sense
             int team = g_memory.read<int>(pawn + C_BaseEntity.m_iTeamNum);
             int health = g_memory.read<int>(pawn + C_BaseEntity.m_iHealth);
 
-            // Team should be 0-3 (none, spec, T, CT)
             if (team >= 0 && team <= 3) {
-                // Health should be 0-100 for dead/alive, or -1/weird for invalid
                 if (health >= 0 && health <= 100) {
                     valid_players++;
                 } else if (health > 100 || health < -1) {
@@ -204,11 +213,9 @@ private:
         }
 
         if (valid_players == 0 && bogus_reads == 0) {
-            // No controllers found at all — might just be main menu
             return TestResult::NO_PLAYERS;
         }
 
-        // We found controllers but data doesn't make sense
         printf("[!] Functional test failed: %d valid, %d bogus reads\n",
                valid_players, bogus_reads);
         return TestResult::OFFSETS_WRONG;
@@ -231,7 +238,6 @@ private:
             return false;
         }
 
-        // cs2-dumper outputs to output/ directory
         const char* dump_dir = "output";
         if (!std::filesystem::exists(dump_dir)) {
             printf("[!] cs2-dumper output directory '%s' not found\n", dump_dir);
@@ -240,7 +246,6 @@ private:
 
         std::filesystem::create_directories("offsets");
 
-        // Copy only the two files we need
         struct FileCopy {
             const char* src;
             const char* dst;
@@ -254,7 +259,6 @@ private:
         for (const auto& fc : needed) {
             if (std::filesystem::exists(fc.src)) {
                 try {
-                    // Remove destination first to guarantee overwrite
                     if (std::filesystem::exists(fc.dst))
                         std::filesystem::remove(fc.dst);
                     std::filesystem::copy_file(fc.src, fc.dst);
@@ -269,7 +273,6 @@ private:
             }
         }
 
-        // Clean up entire output directory
         try {
             std::filesystem::remove_all(dump_dir);
             printf("[+] Cleaned up %s/\n", dump_dir);

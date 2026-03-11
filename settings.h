@@ -77,7 +77,7 @@ struct MenuSettings {
     bool weapon_shadow = true;
     float weapon_font_size = 11.0f;
     bool weapon_show_icon = true;
-    bool weapon_show_text = true;
+    bool weapon_show_text = false;
     float weapon_distance_dropoff = 0.3f;
 
     // Spectator list position

@@ -14,6 +14,7 @@ struct MenuSettings {
     bool draw_radar = true;
     int chams_style = 0;
 
+    bool use_vsync = true;
     float target_fps = 1000.0f;
 
     // ---- ESP Theme ----

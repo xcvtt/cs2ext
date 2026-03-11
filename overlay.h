@@ -201,13 +201,13 @@ public:
         return true;
     }
 
-    void end_frame() {
+    void end_frame(int sync_interval) {
         ImGui::Render();
         const float clear[4] = {0, 0, 0, 0};
         context->OMSetRenderTargets(1, &rtv, nullptr);
         context->ClearRenderTargetView(rtv, clear);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-        swap_chain->Present(0, 0);
+        swap_chain->Present(sync_interval, 0);
     }
 
     void shutdown() {

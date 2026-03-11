@@ -90,6 +90,7 @@ public:
         write(f, "glow_expand_inner", g_settings.glow_expand_inner);
 
         f << "\n[Misc]\n";
+        write(f, "use_vsync", g_settings.use_vsync);
         write(f, "target_fps", g_settings.target_fps);
 
         f << "\n[Box]\n";
@@ -208,6 +209,7 @@ public:
         read(kv, "depth_scale", g_settings.depth_scale);
         read(kv, "glow_expand_outer", g_settings.glow_expand_outer);
         read(kv, "glow_expand_inner", g_settings.glow_expand_inner);
+        read(kv, "use_vsync", g_settings.use_vsync);
         read(kv, "target_fps", g_settings.target_fps);
         read(kv, "box_style", g_settings.box_style);
         read(kv, "box_thickness", g_settings.box_thickness);

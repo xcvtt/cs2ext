@@ -78,8 +78,12 @@ private:
 
         ImGui::Separator();
         ImGui::Text("Performance");
+        ImGui::Checkbox("Vsync", &g_settings.use_vsync);
+
+        ImGui::BeginDisabled(g_settings.use_vsync);
         ImGui::SliderFloat("Target FPS", &g_settings.target_fps, 30, 1000, "%.0f");
-        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1}, "Higher = smoother ESP (500+ recommended)");
+        ImGui::EndDisabled();
+        ImGui::TextColored({0.5f, 0.5f, 0.5f, 1}, "Higher = smoother ESP");
 
         ImGui::Separator();
         if (ImGui::Button("Reset All Settings")) reset_popup_open = true;

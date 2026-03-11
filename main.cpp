@@ -1,8 +1,6 @@
 #include <Windows.h>
-#include <wincodec.h>
 #include <cstdio>
 #include <chrono>
-#include <csignal>
 #include <imgui.h>
 
 #include "types.h"
@@ -98,8 +96,8 @@ int main() {
         g_menu.render();
 
         if (!g_settings.master_switch) {
-            g_overlay.end_frame();
-            limit_frame(frame_start, g_settings.target_fps);
+            g_overlay.end_frame(0);
+            limit_frame(frame_start, 50);
             continue;
         }
 
@@ -142,8 +140,11 @@ int main() {
         };
         g_crosshair.draw(fg, g_overlay.width, g_overlay.height, xhair_cfg);
 
-        g_overlay.end_frame();
-        limit_frame(frame_start, g_settings.target_fps);
+        g_overlay.end_frame(g_settings.use_vsync ? 1 : 0);
+
+        if (!g_settings.use_vsync) {
+            limit_frame(frame_start, g_settings.target_fps);
+        }
     }
 
     g_weapon_icons.shutdown();

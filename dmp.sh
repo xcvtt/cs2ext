@@ -1,7 +1,7 @@
 #!/bin/bash
 
 OUTPUT="project_dump.txt"
-IGNORE="cmake*|.idea|.git|dmp.sh|project_dump.txt"
+IGNORE="cmake*|fonts|icons|.idea|.git|dmp.sh|$OUTPUT"
 
 echo "Project is cs2 external read-only cheat with features: ESP, radar, spectator list, config saving/loading, imgui menu, crosshair, parsing offsets in format of cs2 dumper, chams like ESP etc" > "$OUTPUT"
 echo "" >> "$OUTPUT"

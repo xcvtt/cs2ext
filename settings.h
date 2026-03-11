@@ -17,6 +17,11 @@ struct MenuSettings {
 
     float target_fps = 500.0f;
 
+    // ---- ESP Theme ----
+    bool esp_use_theme = true;
+    // Theme color is the "base" accent: box will be darkened, text/icons will be lightened
+    float esp_theme_color[4] = {0.0f, 0.85f, 1.0f, 1.0f};  // default: cyan
+
     float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.3f};
     float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.35f};
     float enemy_glow[4]    = {1.00f, 0.20f, 0.20f, 0.10f};
@@ -51,8 +56,8 @@ struct MenuSettings {
     float box_padding_y = 5.0f;
     float box_corner_pct = 0.2f;
 
-    // ESP Font
-    int esp_font_index = 5;
+    // ESP Font — -1 means scan_fonts() will auto-select Tahoma (or first available)
+    int esp_font_index = -1;
     float esp_font_atlas_size = 20.0f;
 
     // Name ESP
@@ -63,6 +68,10 @@ struct MenuSettings {
     float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool name_shadow = true;
     float name_font_size = 13.0f;
+
+    // Health bar
+    bool healthbar_solid_color = false;       // if true: flat color instead of green->red gradient
+    float healthbar_color[4] = {0.2f, 0.85f, 1.0f, 0.85f};  // solid color when enabled
 
     // Health text
     float hp_text_color[4] = {1.0f, 1.0f, 1.0f, 0.86f};
@@ -120,3 +129,69 @@ struct MenuSettings {
 };
 
 inline MenuSettings g_settings;
+
+// ============================================================
+//  ESP Theme helpers
+//  When esp_use_theme is true, all per-element colors are
+//  derived from esp_theme_color instead of their individual
+//  settings.  Enemy uses the raw hue; team uses a blue-shifted
+//  complementary tint.
+// ============================================================
+namespace EspTheme {
+
+    // Scale an rgb channel, clamped to [0,1]
+    inline float sc(float v, float f) {
+        return v * f < 0.0f ? 0.0f : (v * f > 1.0f ? 1.0f : v * f);
+    }
+
+    // Returns a derived color: hue from base rgb scaled by `bright`,
+    // alpha = base[3] * a_ratio  (so the theme color picker's alpha is honoured).
+    inline void derive(const float base[4], float bright, float a_ratio, float out[4]) {
+        out[0] = sc(base[0], bright);
+        out[1] = sc(base[1], bright);
+        out[2] = sc(base[2], bright);
+        out[3] = sc(base[3], a_ratio);   // <-- was: out[3] = a_ratio  (ignored base alpha)
+    }
+
+    // Blue-shift for teammates: blend hue toward blue, same alpha fix.
+    inline void derive_team(const float base[4], float bright, float a_ratio, float out[4]) {
+        float blue[4] = {0.2f, 0.45f, 1.0f, 1.0f};
+        out[0] = sc(base[0] * 0.35f + blue[0] * 0.65f, bright);
+        out[1] = sc(base[1] * 0.35f + blue[1] * 0.65f, bright);
+        out[2] = sc(base[2] * 0.35f + blue[2] * 0.65f, bright);
+        out[3] = sc(base[3], a_ratio);   // <-- same fix
+    }
+
+    // Fill all theme-driven color arrays in g_settings for preview/live use.
+    // Called only when esp_use_theme == true.
+    inline void apply(bool enemy) {
+        const float* t = g_settings.esp_theme_color;
+
+        if (enemy) {
+            // Box outline: dark (0.5 brightness), medium alpha
+            derive(t, 0.55f, 0.40f, g_settings.enemy_outline);
+            // Chams fill: very dark, low alpha
+            derive(t, 0.28f, 0.28f, g_settings.enemy_fill);
+            // Glow: dark, very low alpha
+            derive(t, 0.45f, 0.10f, g_settings.enemy_glow);
+            // Name text: bright
+            derive(t, 1.15f, 0.92f, g_settings.name_color);
+            // Weapon text: slightly dimmer
+            derive(t, 0.95f, 0.85f, g_settings.weapon_color);
+            // Weapon icon: bright white-tinted
+            derive(t, 1.10f, 0.90f, g_settings.weapon_icon_color);
+            // Healthbar solid color: bright theme color
+            derive(t, 1.05f, 0.85f, g_settings.healthbar_color);
+            // HP text: full white brightness, alpha tracks theme
+            g_settings.hp_text_color[0] = 1.0f;
+            g_settings.hp_text_color[1] = 1.0f;
+            g_settings.hp_text_color[2] = 1.0f;
+            g_settings.hp_text_color[3] = sc(t[3], 0.86f);
+        } else {
+            derive_team(t, 0.55f, 0.40f, g_settings.team_outline);
+            derive_team(t, 0.28f, 0.28f, g_settings.team_fill);
+            derive_team(t, 0.45f, 0.10f, g_settings.team_glow);
+        }
+    }
+
+} // namespace EspTheme

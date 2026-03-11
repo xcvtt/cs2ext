@@ -102,28 +102,57 @@ struct FrameState {
     uintptr_t entity_list = 0;
 };
 
+// -----------------------------------------------------------------------
+// Compact pawn data we can read in a single bulk RPM call.
+// Covers all offsets we need from a pawn pointer.
+// We read a window of bytes and index into it locally — zero extra RPM calls
+// once we have this buffer.
+// -----------------------------------------------------------------------
+struct PawnSnapshot {
+    // Raw byte buffer covering offset 0 up to the highest offset we need.
+    // Highest needed: max of (m_iHealth, m_iTeamNum, m_pGameSceneNode,
+    //                         m_bIsScoped, m_pObserverServices, m_pClippingWeapon)
+    // These are typically all within the first 0x800 bytes of the pawn.
+    static constexpr size_t SIZE = 0x800;
+    uint8_t buf[SIZE];
+
+    template<typename T>
+    T get(uint32_t offset) const {
+        if (offset + sizeof(T) > SIZE) return T{};
+        T val;
+        memcpy(&val, buf + offset, sizeof(T));
+        return val;
+    }
+};
+
 class EntityReader {
 public:
     FrameState read_frame(int screen_w, int screen_h) {
         FrameState state{};
 
+        // --- 1 RPM: view matrix ---
         g_memory.read_raw(g_memory.get_client_base() + g_offsets.client.dwViewMatrix,
                           &state.view_matrix, 64);
 
+        // --- 1 RPM: local pawn ptr ---
         state.local.pawn = g_memory.read<uintptr_t>(
             g_memory.get_client_base() + g_offsets.client.dwLocalPlayerPawn);
+        // --- 1 RPM: local controller ptr ---
         state.local.controller = g_memory.read<uintptr_t>(
             g_memory.get_client_base() + g_offsets.client.dwLocalPlayerController);
 
         if (state.local.pawn) {
-            state.local.team = g_memory.read<int>(
-                state.local.pawn + g_offsets.C_BaseEntity.m_iTeamNum);
-            state.local.is_scoped = g_memory.read<bool>(
-                state.local.pawn + g_offsets.C_CSPlayerPawn.m_bIsScoped);
+            // --- 1 RPM: bulk-read local pawn snapshot ---
+            PawnSnapshot local_snap{};
+            g_memory.read_raw(state.local.pawn, local_snap.buf, PawnSnapshot::SIZE);
 
-            uintptr_t local_scene = g_memory.read<uintptr_t>(
-                state.local.pawn + g_offsets.C_BaseEntity.m_pGameSceneNode);
+            state.local.team = local_snap.get<int>(g_offsets.C_BaseEntity.m_iTeamNum);
+            state.local.is_scoped = local_snap.get<bool>(g_offsets.C_CSPlayerPawn.m_bIsScoped);
+
+            uintptr_t local_scene = local_snap.get<uintptr_t>(
+                g_offsets.C_BaseEntity.m_pGameSceneNode);
             if (local_scene) {
+                // --- 1 RPM: local scene origin ---
                 Vec3 origin = g_memory.read<Vec3>(
                     local_scene + g_offsets.CGameSceneNode.m_vecAbsOrigin);
                 state.local.x = origin.x;
@@ -134,17 +163,38 @@ public:
                               * 180.0f / 3.14159265f - 90.0f;
         }
 
+        // --- 1 RPM: entity list ptr ---
         state.entity_list = g_memory.read<uintptr_t>(
             g_memory.get_client_base() + g_offsets.client.dwEntityList);
-
         if (!state.entity_list) return state;
 
+        // --- 1 RPM: first page ptr ---
         uintptr_t first_page = g_memory.read<uintptr_t>(
             state.entity_list + EntityList::PAGE_HEADER);
         if (!first_page) return state;
 
+        // ---------------------------------------------------------------
+        // KEY OPTIMIZATION: read the entire entity page in ONE RPM call.
+        // Previously: 63 individual read<uintptr_t> calls = 63 syscalls.
+        // Now: 1 bulk read of 7056 bytes = 1 syscall.
+        // Each slot is 112 bytes (ENTRY_STRIDE); we need the pointer at
+        // offset 0 within each slot.
+        // ---------------------------------------------------------------
+        static constexpr size_t PAGE_BUF_SIZE =
+            EntityList::ENTRY_STRIDE * EntityList::MAX_PLAYERS;
+        static uint8_t page_buf[PAGE_BUF_SIZE];
+
+        if (!g_memory.read_raw(first_page, page_buf, PAGE_BUF_SIZE))
+            return state;
+
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
-            read_player(state, first_page, i, screen_w, screen_h);
+            uintptr_t controller;
+            memcpy(&controller,
+                   page_buf + EntityList::ENTRY_STRIDE * (i & EntityList::INDEX_MASK),
+                   sizeof(uintptr_t));
+            if (!controller) continue;
+
+            read_player(state, controller, i, screen_w, screen_h);
         }
 
         return state;
@@ -153,14 +203,17 @@ public:
 private:
     CBoneData bone_buf[MAX_BONE];
 
-    void read_weapon(uintptr_t pawn, char* out_name, size_t max_len, uint16_t& out_def_index) {
+    void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,
+                     uint16_t& out_def_index) {
         out_name[0] = 0;
         out_def_index = 0;
 
+        // --- 1 RPM: weapon ptr ---
         uintptr_t weapon = g_memory.read<uintptr_t>(
             pawn + g_offsets.C_CSPlayerPawnBase.m_pClippingWeapon);
         if (!weapon) return;
 
+        // --- 1 RPM: def index ---
         uint16_t def_index = g_memory.read<uint16_t>(
             weapon + g_offsets.C_EconEntity.m_AttributeManager
                    + g_offsets.C_AttributeContainer.m_Item
@@ -170,19 +223,16 @@ private:
         out_def_index = def_index;
 
         const WeaponInfo* info = lookup_weapon(def_index);
-        if (info) {
+        if (info)
             snprintf(out_name, max_len, "%s", info->name);
-        } else {
+        else
             snprintf(out_name, max_len, "Weapon %d", def_index);
-        }
     }
 
-    void read_player(FrameState& state, uintptr_t first_page, int i,
+    // Signature changed: takes controller ptr directly (extracted from page_buf
+    // by the caller) instead of re-reading it from first_page.
+    void read_player(FrameState& state, uintptr_t controller, int i,
                      int screen_w, int screen_h) {
-        uintptr_t controller = g_memory.read<uintptr_t>(
-            first_page + EntityList::ENTRY_STRIDE * (i & EntityList::INDEX_MASK));
-        if (!controller) return;
-
         char name[128]{};
         read_player_name(controller, name, sizeof(name));
 
@@ -192,21 +242,32 @@ private:
         uintptr_t pawn = EntityList::resolve_handle(state.entity_list, pawn_handle);
         if (!pawn || pawn == state.local.pawn) return;
 
-        int health = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iHealth);
+        // ---------------------------------------------------------------
+        // KEY OPTIMIZATION: bulk-read pawn in one RPM call.
+        // Previously: separate RPM calls for health, team, scene_node, origin.
+        // Now: 1 RPM call, then local memcpy for each field.
+        // ---------------------------------------------------------------
+        PawnSnapshot snap{};
+        if (!g_memory.read_raw(pawn, snap.buf, PawnSnapshot::SIZE)) return;
+
+        int health = snap.get<int>(g_offsets.C_BaseEntity.m_iHealth);
         if (health <= 0) return;
 
-        int team = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iTeamNum);
+        int team = snap.get<int>(g_offsets.C_BaseEntity.m_iTeamNum);
 
-        uintptr_t scene_node = g_memory.read<uintptr_t>(
-            pawn + g_offsets.C_BaseEntity.m_pGameSceneNode);
+        uintptr_t scene_node = snap.get<uintptr_t>(g_offsets.C_BaseEntity.m_pGameSceneNode);
         if (!scene_node) return;
 
+        // --- 1 RPM: scene origin (external ptr, can't batch with pawn) ---
         Vec3 origin = g_memory.read<Vec3>(
             scene_node + g_offsets.CGameSceneNode.m_vecAbsOrigin);
 
+        // --- 1 RPM: bone array ptr (inside scene_node) ---
         uintptr_t bone_array = g_memory.read<uintptr_t>(
             scene_node + g_offsets.CSkeletonInstance.m_modelState + 0x80);
         if (!bone_array) return;
+
+        // --- 1 RPM: all bones in one read ---
         if (!g_memory.read_raw(bone_array, bone_buf, sizeof(bone_buf))) return;
 
         auto& player = state.players[i];
@@ -216,7 +277,8 @@ private:
         player.origin = origin;
         memcpy(player.name, name, 128);
 
-        read_weapon(pawn, player.weapon, sizeof(player.weapon), player.weapon_def_index);
+        read_weapon(pawn, player.weapon, sizeof(player.weapon),
+                    player.weapon_def_index);
 
         for (int b = 0; b < MAX_BONE; b++)
             player.visible[b] = w2s_depth(

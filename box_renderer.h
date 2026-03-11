@@ -73,7 +73,7 @@ public:
             draw_box(d, x0, y0, x1, y1, box_thick, c);
 
         if (g_settings.draw_healthbar)
-            draw_healthbar(d, x0, y0, x1, y1, p.health, font,
+            draw_healthbar(d, x0, y0, x1, y1, p.health, p.team, font,
                            g_settings.hp_font_size);
 
         if (g_settings.draw_name && p.name[0] && font)
@@ -88,10 +88,8 @@ private:
                   float box_thick, const ColorSet& c) {
         BoxStyle style = static_cast<BoxStyle>(g_settings.box_style);
 
-        x0 = floorf(x0);
-        y0 = floorf(y0);
-        x1 = floorf(x1);
-        y1 = floorf(y1);
+        x0 = floorf(x0); y0 = floorf(y0);
+        x1 = floorf(x1); y1 = floorf(y1);
 
         switch (style) {
         case BoxStyle::CORNERS: {
@@ -153,14 +151,27 @@ private:
     }
 
     void draw_healthbar(ImDrawList* d, float x0, float y0, float x1, float y1,
-                        int health, ImFont* font, float hp_font_size) {
+                        int health, int /*team*/, ImFont* font, float hp_font_size) {
         float bw = 3, bx = x0 - bw - 4, bh = y1 - y0;
         float hp = std::clamp(health / 100.0f, 0.0f, 1.0f);
         float filled = bh * hp;
+
+        // Background track
         d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, IM_COL32(0, 0, 0, 140));
-        d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(30, 30, 30, 180));
-        uint8_t r = (uint8_t)(255 * (1 - hp)), g = (uint8_t)(255 * hp);
-        d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, IM_COL32(r, g, 0, 230));
+        d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(20, 20, 20, 180));
+
+        // Filled portion ─ solid theme/custom color OR classic gradient
+        if (g_settings.healthbar_solid_color) {
+            // Solid color: use healthbar_color setting (theme-driven or manual)
+            ImU32 bar_col = float4_to_col(g_settings.healthbar_color);
+            d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, bar_col);
+        } else {
+            // Classic green→yellow→red gradient
+            uint8_t r = (uint8_t)(255 * (1.0f - hp));
+            uint8_t g = (uint8_t)(255 * hp);
+            d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1},
+                             IM_COL32(r, g, 0, 230));
+        }
 
         if (g_settings.draw_health_text && health < 100 && font) {
             char txt[8];
@@ -170,7 +181,7 @@ private:
             float ty = y0 + (bh - filled) - ts.y * 0.5f;
 
             ImU32 shadow_col = float4_to_col(g_settings.hp_text_shadow_color);
-            ImU32 text_col = float4_to_col(g_settings.hp_text_color);
+            ImU32 text_col   = float4_to_col(g_settings.hp_text_color);
 
             if (g_settings.hp_text_shadow)
                 d->AddText(font, hp_font_size, {tx + 1, ty + 1}, shadow_col, txt);
@@ -189,12 +200,11 @@ private:
         float depth_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
         depth_factor = std::clamp(depth_factor, 0.3f, 3.0f);
 
-        float base_gap = 3.0f * depth_factor;
-        float offset_x = g_settings.name_offset_x * depth_factor;
-        float offset_y = g_settings.name_offset_y * depth_factor;
+        float base_gap  = 3.0f * depth_factor;
+        float offset_x  = g_settings.name_offset_x * depth_factor;
+        float offset_y  = g_settings.name_offset_y * depth_factor;
 
         float nx = 0, ny = 0;
-
         switch (pos) {
             case NamePosition::TOP:
                 nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
@@ -213,12 +223,11 @@ private:
                 ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
                 break;
         }
-
         nx += offset_x;
         ny += offset_y;
 
         ImU32 shadow_col = float4_to_col(g_settings.name_shadow_color);
-        ImU32 text_col = float4_to_col(g_settings.name_color);
+        ImU32 text_col   = float4_to_col(g_settings.name_color);
 
         if (g_settings.name_shadow)
             d->AddText(font, name_fs, {nx + 1, ny + 1}, shadow_col, name);
@@ -238,17 +247,14 @@ private:
 
         float gap = 2.0f;
         float wy = y1 + gap;
-
-        if (g_settings.draw_name && g_settings.name_position == 1) {
+        if (g_settings.draw_name && g_settings.name_position == 1)
             wy += g_settings.name_font_size + 2.0f;
-        }
 
         float center_x = (x0 + x1) * 0.5f;
         float total_width = 0;
 
         bool show_icon = g_settings.weapon_show_icon && p.weapon_def_index > 0;
         bool show_text = g_settings.weapon_show_text && p.weapon[0];
-
         if (!show_icon && !show_text) return;
 
         float icon_w = 0, icon_h = 0;
@@ -277,7 +283,6 @@ private:
                 show_icon = false;
             }
         }
-
         if (show_text) {
             ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0, wep_lower);
             text_w = ts.x;
@@ -287,12 +292,19 @@ private:
         float draw_x = center_x - total_width * 0.5f;
 
         ImU32 shadow_col = float4_to_col(g_settings.weapon_shadow_color);
-        ImU32 text_col = float4_to_col(g_settings.weapon_color);
-        ImU32 icon_col = float4_to_col(g_settings.weapon_icon_color);
+        ImU32 text_col   = float4_to_col(g_settings.weapon_color);
+        ImU32 icon_col   = float4_to_col(g_settings.weapon_icon_color);
 
         if (show_icon && icon_tex) {
             ImVec2 icon_min = {draw_x, wy};
             ImVec2 icon_max = {draw_x + icon_w, wy + icon_h};
+            if (g_settings.weapon_shadow) {
+                // Shadow: same icon drawn 1px offset, RGB forced to black, alpha from shadow_col.
+                ImU32 icon_shadow = (shadow_col & 0xFF000000) | 0x00000000;
+                d->AddImage(icon_tex, {icon_min.x + 1, icon_min.y + 1},
+                                      {icon_max.x + 1, icon_max.y + 1},
+                                      {0, 0}, {1, 1}, icon_shadow);
+            }
             d->AddImage(icon_tex, icon_min, icon_max, {0, 0}, {1, 1}, icon_col);
             draw_x += icon_w + icon_spacing;
         }

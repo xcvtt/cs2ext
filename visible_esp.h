@@ -16,6 +16,13 @@ public:
         bool enemy = (p.team != local_team);
         if (!enemy && !g_settings.draw_teammates) return;
 
+        // --- Theme: overwrite per-element colors from single accent ---
+        if (g_settings.esp_use_theme) {
+            EspTheme::apply(enemy);
+            // Solid healthbar color is also theme-driven when theme is on
+            g_settings.healthbar_solid_color = true;
+        }
+
         ColorSet c = enemy ? get_enemy_colors() : get_team_colors();
         ChamsStyle style = static_cast<ChamsStyle>(g_settings.chams_style);
 
@@ -30,7 +37,8 @@ public:
             g_settings.draw_health_text || g_settings.draw_name ||
             g_settings.draw_weapon) {
             box_renderer.draw_box_hp_name(draw, p, c, idx, is_scoped,
-                                          g_overlay.esp_font, g_settings.esp_font_atlas_size);
+                                          g_overlay.esp_font,
+                                          g_settings.esp_font_atlas_size);
             }
     }
 };

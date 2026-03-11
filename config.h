@@ -22,6 +22,8 @@ public:
         write(f, "draw_teammates", g_settings.draw_teammates);
         write(f, "draw_skeleton_wire", g_settings.draw_skeleton_wire);
         write(f, "chams_style", g_settings.chams_style);
+        write(f, "esp_use_theme",          g_settings.esp_use_theme);
+        write_arr(f, "esp_theme_color",    g_settings.esp_theme_color, 4);
 
         f << "\n[Font]\n";
         write(f, "esp_font_index", g_settings.esp_font_index);
@@ -40,6 +42,8 @@ public:
         write_arr(f, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
         write(f, "hp_text_shadow", g_settings.hp_text_shadow);
         write(f, "hp_font_size", g_settings.hp_font_size);
+        write(f, "healthbar_solid_color",  g_settings.healthbar_solid_color);
+        write_arr(f, "healthbar_color",    g_settings.healthbar_color, 4);
 
         f << "\n[Weapon]\n";
         write_arr(f, "weapon_color", g_settings.weapon_color, 4);
@@ -146,6 +150,10 @@ public:
 
         read(kv, "master_switch", g_settings.master_switch);
         read(kv, "esp_enabled", g_settings.esp_enabled);
+        read(kv,     "esp_use_theme",       g_settings.esp_use_theme);
+        read_arr(kv, "esp_theme_color",     g_settings.esp_theme_color, 4);
+        read(kv,     "healthbar_solid_color", g_settings.healthbar_solid_color);
+        read_arr(kv, "healthbar_color",     g_settings.healthbar_color, 4);
         read(kv, "draw_box", g_settings.draw_box);
         read(kv, "draw_healthbar", g_settings.draw_healthbar);
         read(kv, "draw_health_text", g_settings.draw_health_text);

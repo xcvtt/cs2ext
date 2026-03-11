@@ -398,6 +398,8 @@ private:
             g_settings.menu_font_index = 0;
 
         static const SysFont esp_sys[] = {
+            {"Tahoma",             "tahoma.ttf"},
+            {"Tahoma Bold",        "tahomabd.ttf"},
             {"Arial",              "arial.ttf"},
             {"Arial Bold",         "arialbd.ttf"},
             {"Arial Unicode MS",   "ARIALUNI.TTF"},
@@ -411,11 +413,11 @@ private:
             {"Microsoft YaHei",    "msyh.ttc"},
             {"Segoe UI",           "segoeui.ttf"},
             {"Segoe UI Bold",      "seguisb.ttf"},
-            {"Tahoma",             "tahoma.ttf"},
             {"Trebuchet MS",       "trebuc.ttf"},
             {"Verdana",            "verdana.ttf"},
             {"Verdana Bold",       "verdanab.ttf"},
         };
+
 
         for (const auto& fv : fira_variants) {
             if (file_exists(fv.path))
@@ -430,8 +432,19 @@ private:
         if (available_fonts.empty())
             available_fonts.push_back({"Default (ImGui)", ""});
 
-        if (g_settings.esp_font_index < 0 ||
-            g_settings.esp_font_index >= (int)available_fonts.size())
+        // Auto-select: only run when esp_font_index == -1 (first ever launch / reset).
+        // Search for Tahoma by display name; fall back to index 0.
+        if (g_settings.esp_font_index < 0) {
+            g_settings.esp_font_index = 0;  // safe fallback
+            for (int i = 0; i < (int)available_fonts.size(); i++) {
+                if (available_fonts[i].display_name == "Tahoma") {
+                    g_settings.esp_font_index = i;
+                    break;
+                }
+            }
+        }
+        // Clamp in case saved index is now out of range (fonts removed etc.)
+        if (g_settings.esp_font_index >= (int)available_fonts.size())
             g_settings.esp_font_index = 0;
     }
 

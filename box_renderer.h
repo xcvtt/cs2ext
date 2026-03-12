@@ -151,22 +151,19 @@ private:
     }
 
     void draw_healthbar(ImDrawList* d, float x0, float y0, float x1, float y1,
-                        int health, int /*team*/, ImFont* font, float hp_font_size) {
+                        int health, int /*team*/, ImFont* font, float hp_font_size)
+    {
         float bw = 3, bx = x0 - bw - 4, bh = y1 - y0;
         float hp = std::clamp(health / 100.0f, 0.0f, 1.0f);
         float filled = bh * hp;
 
-        // Background track
         d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, IM_COL32(0, 0, 0, 140));
         d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(20, 20, 20, 180));
 
-        // Filled portion ─ solid theme/custom color OR classic gradient
         if (g_settings.healthbar_solid_color) {
-            // Solid color: use healthbar_color setting (theme-driven or manual)
             ImU32 bar_col = float4_to_col(g_settings.healthbar_color);
             d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, bar_col);
         } else {
-            // Classic green→yellow→red gradient
             uint8_t r = (uint8_t)(255 * (1.0f - hp));
             uint8_t g = (uint8_t)(255 * hp);
             d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1},
@@ -175,149 +172,188 @@ private:
 
         if (g_settings.draw_health_text && health < 100 && font) {
             char txt[8];
-            snprintf(txt, 8, "%d", health);
-            ImVec2 ts = font->CalcTextSizeA(hp_font_size, FLT_MAX, 0, txt);
-            float tx = bx - ts.x - 2;
+            snprintf(txt, sizeof(txt), "%d", health);
+
+            ImVec2 ts = font->CalcTextSizeA(hp_font_size, FLT_MAX, 0.0f, txt);
+
+            float tx = bx - ts.x - 3;
             float ty = y0 + (bh - filled) - ts.y * 0.5f;
 
-            ImU32 shadow_col = float4_to_col(g_settings.hp_text_shadow_color);
+            // pixel snap
+            tx = floorf(tx);
+            ty = floorf(ty);
+
+            ImU32 outline_col = float4_to_col(g_settings.hp_text_shadow_color);
             ImU32 text_col   = float4_to_col(g_settings.hp_text_color);
 
-            if (g_settings.hp_text_shadow)
-                d->AddText(font, hp_font_size, {tx + 1, ty + 1}, shadow_col, txt);
+            if (g_settings.hp_text_shadow) {
+                d->AddText(font, hp_font_size, {tx - 1, ty}, outline_col, txt);
+                d->AddText(font, hp_font_size, {tx + 1, ty}, outline_col, txt);
+                d->AddText(font, hp_font_size, {tx, ty - 1}, outline_col, txt);
+                d->AddText(font, hp_font_size, {tx, ty + 1}, outline_col, txt);
+            }
+
             d->AddText(font, hp_font_size, {tx, ty}, text_col, txt);
         }
     }
 
     void draw_name(ImDrawList* d, float x0, float y0, float x1, float y1,
-                   const char* name, ImFont* font, float avg_depth) {
+                   const char* name, ImFont* font, float avg_depth)
+    {
         float name_fs = g_settings.name_font_size;
-        ImVec2 ts = font->CalcTextSizeA(name_fs, FLT_MAX, 0,
-                                        name, name + strlen(name));
+
+        ImVec2 ts = font->CalcTextSizeA(name_fs, FLT_MAX, 0.0f, name);
 
         NamePosition pos = static_cast<NamePosition>(g_settings.name_position);
 
-        float depth_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
-        depth_factor = std::clamp(depth_factor, 0.3f, 3.0f);
+        float base_gap  = 3.0f;
+        float nx = 0.0f;
+        float ny = 0.0f;
 
-        float base_gap  = 3.0f * depth_factor;
-        float offset_x  = g_settings.name_offset_x * depth_factor;
-        float offset_y  = g_settings.name_offset_y * depth_factor;
-
-        float nx = 0, ny = 0;
-        switch (pos) {
+        switch (pos)
+        {
             case NamePosition::TOP:
                 nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
                 ny = y0 - ts.y - base_gap;
                 break;
+
             case NamePosition::BOTTOM:
                 nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
                 ny = y1 + base_gap;
                 break;
+
             case NamePosition::LEFT:
                 nx = x0 - ts.x - base_gap * 1.5f;
                 ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
                 break;
+
             case NamePosition::RIGHT:
                 nx = x1 + base_gap * 1.5f;
                 ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
                 break;
         }
-        nx += offset_x;
-        ny += offset_y;
 
-        ImU32 shadow_col = float4_to_col(g_settings.name_shadow_color);
+        nx += g_settings.name_offset_x;
+        ny += g_settings.name_offset_y;
+
+        // Pixel snap (VERY important)
+        nx = floorf(nx);
+        ny = floorf(ny);
+
         ImU32 text_col   = float4_to_col(g_settings.name_color);
+        ImU32 outline_col = float4_to_col(g_settings.name_shadow_color);
 
         if (g_settings.name_shadow)
-            d->AddText(font, name_fs, {nx + 1, ny + 1}, shadow_col, name);
+        {
+            d->AddText(font, name_fs, {nx - 1, ny}, outline_col, name);
+            d->AddText(font, name_fs, {nx + 1, ny}, outline_col, name);
+            d->AddText(font, name_fs, {nx, ny - 1}, outline_col, name);
+            d->AddText(font, name_fs, {nx, ny + 1}, outline_col, name);
+        }
+
         d->AddText(font, name_fs, {nx, ny}, text_col, name);
     }
 
-    void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
-                     const PlayerVisuals& p, ImFont* font, float avg_depth) {
-        float raw_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
-        raw_factor = std::clamp(raw_factor, 0.1f, 3.0f);
-        float dropoff = g_settings.weapon_distance_dropoff;
-        float scale = 1.0f + (raw_factor - 1.0f) * dropoff;
-        scale = std::clamp(scale, 0.4f, 2.0f);
+void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
+                 const PlayerVisuals& p, ImFont* font, float avg_depth)
+{
+    float raw_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
+    raw_factor = std::clamp(raw_factor, 0.1f, 3.0f);
 
-        float wep_fs = g_settings.weapon_font_size * scale;
-        wep_fs = std::clamp(wep_fs, 5.0f, g_settings.weapon_font_size * 1.8f);
+    float dropoff = g_settings.weapon_distance_dropoff;
+    float scale = 1.0f + (raw_factor - 1.0f) * dropoff;
+    scale = std::clamp(scale, 0.6f, 1.8f);
 
-        float gap = 2.0f;
-        float wy = y1 + gap;
-        if (g_settings.draw_name && g_settings.name_position == 1)
-            wy += g_settings.name_font_size + 2.0f;
+    float wep_fs = g_settings.weapon_font_size * scale;
 
-        float center_x = (x0 + x1) * 0.5f;
-        float total_width = 0;
+    float gap = 2.0f;
+    float wy = y1 + gap;
 
-        bool show_icon = g_settings.weapon_show_icon && p.weapon_def_index > 0;
-        bool show_text = g_settings.weapon_show_text && p.weapon[0];
-        if (!show_icon && !show_text) return;
+    if (g_settings.draw_name && g_settings.name_position == 1)
+        wy += g_settings.name_font_size + 2.0f;
 
-        float icon_w = 0, icon_h = 0;
-        float text_w = 0;
-        float icon_spacing = 2.0f * scale;
+    float center_x = (x0 + x1) * 0.5f;
 
-        char wep_lower[64];
-        {
-            const char* src = p.weapon;
-            int i = 0;
-            for (; src[i] && i < 63; i++)
-                wep_lower[i] = (char)tolower((unsigned char)src[i]);
-            wep_lower[i] = 0;
-        }
+    bool show_icon = g_settings.weapon_show_icon && p.weapon_def_index > 0;
+    bool show_text = g_settings.weapon_show_text && p.weapon[0];
+    if (!show_icon && !show_text) return;
 
-        ImTextureID icon_tex = nullptr;
-        if (show_icon) {
-            icon_tex = g_weapon_icons.get_icon(p.weapon_def_index);
-            if (icon_tex) {
-                icon_h = wep_fs + 2.0f * scale;
-                float aspect = g_weapon_icons.get_icon_aspect(p.weapon_def_index);
-                icon_w = icon_h * aspect;
-                total_width += icon_w;
-                if (show_text) total_width += icon_spacing;
-            } else {
-                show_icon = false;
-            }
-        }
-        if (show_text) {
-            ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0, wep_lower);
-            text_w = ts.x;
-            total_width += text_w;
-        }
+    char wep_lower[64];
+    {
+        const char* src = p.weapon;
+        int i = 0;
+        for (; src[i] && i < 63; i++)
+            wep_lower[i] = (char)tolower((unsigned char)src[i]);
+        wep_lower[i] = 0;
+    }
 
-        float draw_x = center_x - total_width * 0.5f;
+    float icon_w = 0, icon_h = 0;
+    float text_w = 0;
+    float spacing = 3.0f * scale;
 
-        ImU32 shadow_col = float4_to_col(g_settings.weapon_shadow_color);
-        ImU32 text_col   = float4_to_col(g_settings.weapon_color);
-        ImU32 icon_col   = float4_to_col(g_settings.weapon_icon_color);
+    ImTextureID icon_tex = nullptr;
 
-        if (show_icon && icon_tex) {
-            ImVec2 icon_min = {draw_x, wy};
-            ImVec2 icon_max = {draw_x + icon_w, wy + icon_h};
-            if (g_settings.weapon_shadow) {
-                // Shadow: same icon drawn 1px offset, RGB forced to black, alpha from shadow_col.
-                ImU32 icon_shadow = (shadow_col & 0xFF000000) | 0x00000000;
-                d->AddImage(icon_tex, {icon_min.x + 1, icon_min.y + 1},
-                                      {icon_max.x + 1, icon_max.y + 1},
-                                      {0, 0}, {1, 1}, icon_shadow);
-            }
-            d->AddImage(icon_tex, icon_min, icon_max, {0, 0}, {1, 1}, icon_col);
-            draw_x += icon_w + icon_spacing;
-        }
-
-        if (show_text) {
-            float text_y = wy;
-            if (show_icon) {
-                ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0, wep_lower);
-                text_y = wy + (icon_h - ts.y) * 0.5f;
-            }
-            if (g_settings.weapon_shadow)
-                d->AddText(font, wep_fs, {draw_x + 1, text_y + 1}, shadow_col, wep_lower);
-            d->AddText(font, wep_fs, {draw_x, text_y}, text_col, wep_lower);
+    if (show_icon) {
+        icon_tex = g_weapon_icons.get_icon(p.weapon_def_index);
+        if (icon_tex) {
+            icon_h = wep_fs + 2.0f * scale;
+            float aspect = g_weapon_icons.get_icon_aspect(p.weapon_def_index);
+            icon_w = icon_h * aspect;
+        } else {
+            show_icon = false;
         }
     }
+
+    if (show_text) {
+        ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0.0f, wep_lower);
+        text_w = ts.x;
+    }
+
+    float total_width = icon_w + (show_icon && show_text ? spacing : 0) + text_w;
+    float draw_x = center_x - total_width * 0.5f;
+
+    ImU32 outline_col = float4_to_col(g_settings.weapon_shadow_color);
+    ImU32 text_col   = float4_to_col(g_settings.weapon_color);
+    ImU32 icon_col   = float4_to_col(g_settings.weapon_icon_color);
+
+    if (show_icon && icon_tex) {
+
+        ImVec2 icon_min = {floorf(draw_x), floorf(wy)};
+        ImVec2 icon_max = {floorf(draw_x + icon_w), floorf(wy + icon_h)};
+
+        if (g_settings.weapon_shadow) {
+            ImU32 icon_shadow = (outline_col & 0xFF000000) | 0x00000000;
+            d->AddImage(icon_tex,
+                        {icon_min.x + 1, icon_min.y + 1},
+                        {icon_max.x + 1, icon_max.y + 1},
+                        {0,0},{1,1}, icon_shadow);
+        }
+
+        d->AddImage(icon_tex, icon_min, icon_max, {0,0},{1,1}, icon_col);
+
+        draw_x += icon_w + spacing;
+    }
+
+    if (show_text) {
+
+        ImVec2 ts = font->CalcTextSizeA(wep_fs, FLT_MAX, 0.0f, wep_lower);
+
+        float text_y = wy;
+
+        if (show_icon)
+            text_y = wy + (icon_h - ts.y) * 0.5f;
+
+        float tx = floorf(draw_x);
+        float ty = floorf(text_y);
+
+        if (g_settings.weapon_shadow) {
+            d->AddText(font, wep_fs, {tx - 1, ty}, outline_col, wep_lower);
+            d->AddText(font, wep_fs, {tx + 1, ty}, outline_col, wep_lower);
+            d->AddText(font, wep_fs, {tx, ty - 1}, outline_col, wep_lower);
+            d->AddText(font, wep_fs, {tx, ty + 1}, outline_col, wep_lower);
+        }
+
+        d->AddText(font, wep_fs, {tx, ty}, text_col, wep_lower);
+    }
+}
 };

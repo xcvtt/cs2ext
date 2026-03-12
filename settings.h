@@ -12,7 +12,7 @@ struct MenuSettings {
     bool draw_head = true;
     bool draw_spectators = true;
     bool draw_radar = true;
-    int chams_style = 0;
+    int chams_style = 3;
 
     bool use_vsync = true;
     float target_fps = 1000.0f;

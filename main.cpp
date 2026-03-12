@@ -40,6 +40,8 @@ static BOOL WINAPI console_handler(DWORD event) {
 int main() {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
+    ImGui_ImplWin32_EnableDpiAwareness();
+
     SetConsoleCtrlHandler(console_handler, TRUE);
     std::atexit(save_and_exit);
 

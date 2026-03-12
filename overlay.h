@@ -120,8 +120,8 @@ public:
         float mf_size = g_settings.menu_font_size;
 
         ImFontConfig cfg;
-        cfg.OversampleH = 2;
-        cfg.OversampleV = 1;
+        cfg.OversampleH = 3;
+        cfg.OversampleV = 2;
 
         if (mf_path) {
             default_font = io.Fonts->AddFontFromFileTTF(mf_path, mf_size, &cfg,
@@ -136,8 +136,8 @@ public:
         if (!menu_title_font) menu_title_font = default_font;
 
         ImFontConfig spec_cfg;
-        spec_cfg.OversampleH = 2;
-        spec_cfg.OversampleV = 1;
+        cfg.OversampleH = 3;
+        cfg.OversampleV = 2;
         if (mf_path)
             spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
@@ -149,8 +149,8 @@ public:
 
         const char* esp_path = get_esp_font_path();
         ImFontConfig esp_cfg;
-        esp_cfg.OversampleH = 2;
-        esp_cfg.OversampleV = 1;
+        cfg.OversampleH = 3;
+        cfg.OversampleV = 2;
 
         esp_font = nullptr;
         if (esp_path)
@@ -479,6 +479,7 @@ private:
     void init_imgui() {
         ImGui::CreateContext();
         auto& io = ImGui::GetIO();
+
         io.IniFilename = nullptr;
         io.LogFilename = nullptr;
 

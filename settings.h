@@ -182,11 +182,8 @@ namespace EspTheme {
             derive(t, 1.10f, 0.90f, g_settings.weapon_icon_color);
             // Healthbar solid color: bright theme color
             derive(t, 1.05f, 0.85f, g_settings.healthbar_color);
-            // HP text: full white brightness, alpha tracks theme
-            g_settings.hp_text_color[0] = 1.0f;
-            g_settings.hp_text_color[1] = 1.0f;
-            g_settings.hp_text_color[2] = 1.0f;
-            g_settings.hp_text_color[3] = sc(t[3], 0.86f);
+            // HP text: bright theme hue, slightly dimmer than name
+            derive(t, 1.05f, 0.86f, g_settings.hp_text_color);
         } else {
             derive_team(t, 0.55f, 0.40f, g_settings.team_outline);
             derive_team(t, 0.28f, 0.28f, g_settings.team_fill);

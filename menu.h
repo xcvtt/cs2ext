@@ -388,8 +388,6 @@ private:
             ImGui::RadioButton("O##xs", &g_settings.crosshair_shape, 2); ImGui::SameLine();
             ImGui::RadioButton("Dot##xs", &g_settings.crosshair_shape, 3); ImGui::SameLine();
             ImGui::RadioButton("+O##xs", &g_settings.crosshair_shape, 4); ImGui::SameLine();
-            ImGui::RadioButton("<>##xs", &g_settings.crosshair_shape, 5); ImGui::SameLine();
-            ImGui::RadioButton(">>##xs", &g_settings.crosshair_shape, 6);
 
             ImGui::ColorEdit4("Color##xcol", g_settings.crosshair_color, ImGuiColorEditFlags_NoInputs);
             ImGui::SliderFloat("Size##xsz", &g_settings.crosshair_size, 0.5f, 20, "%.1f");
@@ -399,7 +397,7 @@ private:
                            g_settings.crosshair_shape == 4 ||
                            g_settings.crosshair_shape == 6;
             if (has_gap)
-                ImGui::SliderFloat("Gap##xgap", &g_settings.crosshair_gap, 0, 10, "%.1f");
+                ImGui::SliderFloat("Gap##xgap", &g_settings.crosshair_gap, -10, 10, "%.1f");
 
             ImGui::Checkbox("Outline##xol", &g_settings.crosshair_outline);
             if (g_settings.crosshair_outline) {

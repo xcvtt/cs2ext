@@ -350,7 +350,7 @@ private:
         ImGui::Separator();
         ImGui::SliderFloat("Size", &g_settings.radar_size, 100, 400, "%.0f");
         ImGui::SliderFloat("Range", &g_settings.radar_range, 500, 6000, "%.0f");
-        ImGui::SliderFloat("Opacity", &g_settings.radar_bg_alpha, 0.1f, 1.0f, "%.2f");
+        ImGui::SliderFloat("Opacity", &g_settings.radar_bg_alpha, 0.0f, 1.0f, "%.2f");
         ImGui::DragFloat("Position X", &g_settings.radar_x, 1, 0, 3000);
         ImGui::DragFloat("Position Y", &g_settings.radar_y, 1, 0, 2000);
 

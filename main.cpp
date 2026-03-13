@@ -121,7 +121,7 @@ int main() {
         }
 
         g_radar.draw(draw, state.radar_players, EntityList::MAX_PLAYERS,
-                     state.local.x, state.local.y, state.local.yaw, state.local.team,
+                     state.local.x, state.local.y, state.local.yaw, state.local.team, state.map_scale,
                      g_overlay.width, g_overlay.height);
 
         g_spectators.draw(g_overlay.width);

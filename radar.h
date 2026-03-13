@@ -9,11 +9,15 @@ class Radar {
 public:
     void draw(ImDrawList* draw, const RadarPlayer* players, int count,
               float local_x, float local_y, float local_yaw, int local_team,
-              int sw, int sh) {
+              float map_scale, int sw, int sh) {
+
         if (!g_settings.draw_radar || !g_settings.master_switch) return;
 
         float size = g_settings.radar_size;
-        float range = g_settings.radar_range;
+
+        // NEW CALCULATION: range = 210 * scale / zoom
+        float range = (210.0f * map_scale) / g_settings.radar_zoom;
+
         float rx = g_settings.radar_x;
         float ry = g_settings.radar_y;
         float cx = rx + size * 0.5f;

@@ -38,15 +38,15 @@ struct MenuSettings {
     bool menu_open = true;
 
     // Radar
-    float radar_size = 200.0f;
-    float radar_range = 2500.0f;
-    float radar_x = 10.0f;
-    float radar_y = 10.0f;
+    float radar_size = 275.0f;
+    float radar_zoom = 0.35f;
+    float radar_x = 29.0f;
+    float radar_y = 29.0f;
     bool radar_rotate = true;
     bool radar_circle = true;
-    bool radar_rings = true;
+    bool radar_rings = false;
     bool radar_names = false;
-    float radar_bg_alpha = 0.85f;
+    float radar_bg_alpha = 0.0f;
     float radar_enemy_color[4] = {1.00f, 0.30f, 0.30f, 0.90f};
     float radar_team_color[4]  = {0.30f, 0.55f, 1.00f, 0.90f};
 

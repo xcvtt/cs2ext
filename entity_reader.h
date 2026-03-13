@@ -6,6 +6,31 @@
 #include "offsets.h"
 #include "entity_utils.h"
 
+inline float get_map_scale(const std::string& map_name) {
+    if (map_name.find("ar_baggage") != std::string::npos) return 2.539062f;
+    if (map_name.find("ar_shoots") != std::string::npos) return 2.687500f;
+    if (map_name.find("cs_italy") != std::string::npos) return 4.6f;
+    if (map_name.find("cs_office") != std::string::npos) return 4.1f;
+
+    // Check ancient before just "de_ancient" to catch v1/v2/night automatically
+    if (map_name.find("de_ancient") != std::string::npos) return 5.0f;
+    if (map_name.find("de_anubis") != std::string::npos) return 5.220000f;
+
+    // Check dust2 BEFORE dust
+    if (map_name.find("de_dust2") != std::string::npos) return 4.4f;
+    if (map_name.find("de_dust") != std::string::npos) return 6.0f;
+
+    if (map_name.find("de_inferno") != std::string::npos) return 4.9f;
+    if (map_name.find("de_mirage") != std::string::npos) return 5.0f;
+    if (map_name.find("de_nuke") != std::string::npos) return 7.0f;
+    if (map_name.find("de_overpass") != std::string::npos) return 5.2f;
+    if (map_name.find("de_train") != std::string::npos) return 4.082077f;
+    if (map_name.find("de_vertigo") != std::string::npos) return 4.0f;
+    if (map_name.find("workshop_preview") != std::string::npos) return 1.699219f;
+
+    return 5.0f; // Default fallback if unknown map
+}
+
 struct WeaponInfo {
     uint16_t def_index;
     const char* name;
@@ -100,6 +125,7 @@ struct FrameState {
     PlayerVisuals players[64];
     RadarPlayer radar_players[64];
     uintptr_t entity_list = 0;
+    float map_scale = 5.0f;
 };
 
 // -----------------------------------------------------------------------
@@ -129,6 +155,26 @@ class EntityReader {
 public:
     FrameState read_frame(int screen_w, int screen_h) {
         FrameState state{};
+
+        // --- NEW: Read GlobalVars for Map Scale (Cached) ---
+        uintptr_t global_vars = g_memory.read<uintptr_t>(
+            g_memory.get_client_base() + g_offsets.client.dwGlobalVars);
+
+        if (global_vars) {
+            // 0x188 is the standard offset for m_currentMapName in CGlobalVarsBase
+            uintptr_t current_map_ptr = g_memory.read<uintptr_t>(global_vars + 0x188);
+
+            // If the pointer changed (e.g., map changed or joined new server), read the new string
+            if (current_map_ptr != cached_map_ptr && current_map_ptr != 0) {
+                char map_name[64] = {0};
+                if (g_memory.read_raw(current_map_ptr, map_name, sizeof(map_name))) {
+                    cached_map_scale = get_map_scale(map_name);
+                    cached_map_ptr = current_map_ptr;
+                }
+            }
+        }
+        state.map_scale = cached_map_scale; // Assign the cached scale to the frame state
+        // ---------------------------------------------------
 
         // --- 1 RPM: view matrix ---
         g_memory.read_raw(g_memory.get_client_base() + g_offsets.client.dwViewMatrix,
@@ -202,6 +248,8 @@ public:
 
 private:
     CBoneData bone_buf[MAX_BONE];
+    uintptr_t cached_map_ptr = 0;
+    float cached_map_scale = 5.0f;
 
     void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,
                      uint16_t& out_def_index) {

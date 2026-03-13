@@ -67,7 +67,7 @@ public:
         write(f, "radar_rings", g_settings.radar_rings);
         write(f, "radar_names", g_settings.radar_names);
         write(f, "radar_size", g_settings.radar_size);
-        write(f, "radar_range", g_settings.radar_range);
+        write(f, "radar_zoom", g_settings.radar_zoom);
         write(f, "radar_bg_alpha", g_settings.radar_bg_alpha);
         write(f, "radar_x", g_settings.radar_x);
         write(f, "radar_y", g_settings.radar_y);
@@ -192,7 +192,7 @@ public:
         read(kv, "radar_rings", g_settings.radar_rings);
         read(kv, "radar_names", g_settings.radar_names);
         read(kv, "radar_size", g_settings.radar_size);
-        read(kv, "radar_range", g_settings.radar_range);
+        read(kv, "radar_zoom", g_settings.radar_zoom);
         read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);
         read(kv, "radar_x", g_settings.radar_x);
         read(kv, "radar_y", g_settings.radar_y);

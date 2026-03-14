@@ -57,6 +57,7 @@ public:
             if (!players[i].valid || players[i].health <= 0) continue;
 
             bool enemy = (players[i].team != local_team);
+            if (players[i].is_spotted) continue;
             if (!enemy && !g_settings.draw_teammates) continue;
 
             float dx = players[i].x - local_x;
@@ -110,26 +111,6 @@ public:
                 draw->AddText({tx + 1, ty + 1}, IM_COL32(0, 0, 0, 160), players[i].name);
                 draw->AddText({tx, ty}, IM_COL32(255, 255, 255, 180), players[i].name);
             }
-        }
-
-        float ts = 3.5f;
-        if (g_settings.radar_rotate) {
-            draw->AddTriangleFilled(
-                {cx, cy - ts * 1.3f},
-                {cx - ts * 0.8f, cy + ts * 0.5f},
-                {cx + ts * 0.8f, cy + ts * 0.5f},
-                IM_COL32(255, 255, 255, 220));
-        } else {
-            float a = (local_yaw + 90.0f) * 3.14159265f / 180.0f;
-            float ca = cosf(a), sa = sinf(a);
-            auto rot = [&](float lx, float ly) -> ImVec2 {
-                return {cx + lx * ca - ly * sa, cy - lx * sa - ly * ca};
-            };
-            draw->AddTriangleFilled(
-                rot(0, ts * 1.3f),
-                rot(-ts * 0.8f, -ts * 0.5f),
-                rot(ts * 0.8f, -ts * 0.5f),
-                IM_COL32(255, 255, 255, 220));
         }
 
         if (g_settings.radar_circle)

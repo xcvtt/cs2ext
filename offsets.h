@@ -3,8 +3,8 @@
 #include <string>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include "memory.h"
 
@@ -33,7 +33,7 @@ struct Offsets {
         uint32_t m_hObserverTarget;
     } CPlayer_ObserverServices;
     struct {
-        uint32_t m_bIsScoped;
+        uint32_t m_bIsScoped, m_entitySpottedState;
     } C_CSPlayerPawn;
     struct {
         uint32_t m_vecViewOffset;
@@ -50,6 +50,9 @@ struct Offsets {
     struct {
         uint32_t m_iItemDefinitionIndex;
     } C_EconItemView;
+    struct {
+        uint32_t m_bSpotted;
+    } EntitySpottedState_t;
 
     bool load(const std::string& offsets_path, const std::string& client_dll_path) {
         if (!std::filesystem::exists(offsets_path) ||
@@ -145,6 +148,9 @@ private:
                 cs["C_AttributeContainer"]["fields"]["m_Item"];
             C_EconItemView.m_iItemDefinitionIndex =
                 cs["C_EconItemView"]["fields"]["m_iItemDefinitionIndex"];
+
+            C_CSPlayerPawn.m_entitySpottedState = cs["C_CSPlayerPawn"]["fields"]["m_entitySpottedState"];
+            EntitySpottedState_t.m_bSpotted = cs["EntitySpottedState_t"]["fields"]["m_bSpotted"];
 
             return true;
         } catch (const std::exception& e) {

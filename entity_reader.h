@@ -227,7 +227,7 @@ public:
         // offset 0 within each slot.
         // ---------------------------------------------------------------
         static constexpr size_t PAGE_BUF_SIZE =
-            EntityList::ENTRY_STRIDE * EntityList::MAX_PLAYERS;
+            EntityList::ENTRY_STRIDE * 512;
         static uint8_t page_buf[PAGE_BUF_SIZE];
 
         if (!g_memory.read_raw(first_page, page_buf, PAGE_BUF_SIZE))
@@ -250,6 +250,7 @@ private:
     CBoneData bone_buf[MAX_BONE];
     uintptr_t cached_map_ptr = 0;
     float cached_map_scale = 5.0f;
+    std::chrono::steady_clock::time_point last_spotted_time[64];
 
     void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,
                      uint16_t& out_def_index) {
@@ -334,8 +335,30 @@ private:
                 screen_w, screen_h,
                 player.screens[b], player.depths[b]);
 
+
+        const bool is_spotted_ingame = g_memory.read<bool>(pawn
+            + g_offsets.C_CSPlayerPawn.m_entitySpottedState
+            + g_offsets.EntitySpottedState_t.m_bSpotted);
+
+        auto now = std::chrono::steady_clock::now();
+        if (is_spotted_ingame) {
+            last_spotted_time[i] = now;
+        }
+
+        // Calculate how much time has passed since they were last spotted
+        auto time_since_spotted = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - last_spotted_time[i]).count();
+
+        bool is_recently_spotted = (time_since_spotted < 1000);
+
         auto& rp = state.radar_players[i];
-        rp = {origin.x, origin.y, origin.z, team, health, true, {}};
+        rp.x = origin.x;
+        rp.y = origin.y;
+        rp.z = origin.z;
+        rp.team = team;
+        rp.health = health;
+        rp.valid = true;
+        rp.is_spotted = is_recently_spotted;
         memcpy(rp.name, name, 128);
     }
 };

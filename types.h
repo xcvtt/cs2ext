@@ -88,6 +88,7 @@ struct RadarPlayer {
     int team;
     int health;
     bool valid;
+    bool is_spotted;
     char name[128];
 };
 

@@ -373,7 +373,7 @@ private:
                 SetWindowPos(overlay_hwnd, HWND_TOPMOST,
                              gr.left, gr.top,
                              gr.right - gr.left, gr.bottom - gr.top,
-                             SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+                             SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOREDRAW);
             }
         }
     }

@@ -114,11 +114,9 @@ private:
             break;
         }
         case BoxStyle::FULL: {
-            d->AddRect({x0 - 1, y0 - 1}, {x1 + 1, y1 + 1},
-                       IM_COL32(0, 0, 0, 100), 0, 0, 1.0f);
+            ImU32 bg = IM_COL32(0, 0, 0, 140);
+            d->AddRect({x0, y0}, {x1, y1}, bg, 0, 0, box_thick + 2.0f);
             d->AddRect({x0, y0}, {x1, y1}, c.outline, 0, 0, box_thick);
-            d->AddRect({x0 + 1, y0 + 1}, {x1 - 1, y1 - 1},
-                       IM_COL32(0, 0, 0, 100), 0, 0, 1.0f);
             break;
         }
         case BoxStyle::DASHED: {

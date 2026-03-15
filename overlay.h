@@ -64,7 +64,7 @@ public:
             0, 0, width, height,
             nullptr, nullptr, wc.hInstance, nullptr);
 
-        SetLayeredWindowAttributes(overlay_hwnd, RGB(0, 0, 0), 255, LWA_ALPHA);
+        SetLayeredWindowAttributes(overlay_hwnd, 0, 255, LWA_ALPHA);
         MARGINS margins = {-1};
         DwmExtendFrameIntoClientArea(overlay_hwnd, &margins);
 
@@ -136,8 +136,8 @@ public:
         if (!menu_title_font) menu_title_font = default_font;
 
         ImFontConfig spec_cfg;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 2;
+        spec_cfg.OversampleH = 3;
+        spec_cfg.OversampleV = 2;
         if (mf_path)
             spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
@@ -149,8 +149,8 @@ public:
 
         const char* esp_path = get_esp_font_path();
         ImFontConfig esp_cfg;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 2;
+        esp_cfg.OversampleH = 3;
+        esp_cfg.OversampleV = 2;
 
         esp_font = nullptr;
         if (esp_path)

@@ -211,17 +211,6 @@ public:
         if (!IsWindow(game_hwnd)) return false;
         if (font_rebuild_needed) rebuild_fonts();
 
-        // Dynamic click-through: WS_EX_TRANSPARENT is already managed by
-        // set_interactive(), but keep the fallback sync here for safety.
-        LONG ex_style = GetWindowLongW(overlay_hwnd, GWL_EXSTYLE);
-        if (g_settings.menu_open) {
-            if (ex_style & WS_EX_TRANSPARENT)
-                SetWindowLongW(overlay_hwnd, GWL_EXSTYLE, ex_style & ~WS_EX_TRANSPARENT);
-        } else {
-            if (!(ex_style & WS_EX_TRANSPARENT))
-                SetWindowLongW(overlay_hwnd, GWL_EXSTYLE, ex_style | WS_EX_TRANSPARENT);
-        }
-
         static int check_tick = 0;
         if (++check_tick >= 10) {
             check_tick = 0;

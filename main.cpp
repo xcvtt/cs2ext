@@ -217,8 +217,9 @@ int main() {
         g_menu.render();
 
         if (!g_settings.master_switch) {
+            static constexpr int IDLE_FPS_CAP = 20;
             g_overlay.end_frame(0);
-            limit_frame(frame_start, 50);
+            limit_frame(frame_start, IDLE_FPS_CAP);
             continue;
         }
 

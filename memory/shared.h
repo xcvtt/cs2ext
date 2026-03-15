@@ -1,4 +1,4 @@
-/* shared.h - Shared between driver and usermode app */
+// memory/shared.h
 #pragma once
 
 #ifdef _KERNEL_MODE
@@ -11,6 +11,8 @@
 #define DRIVER_DEVICE_NAME    L"\\Device\\MemReader"
 #define DRIVER_SYMBOLIC_LINK  L"\\DosDevices\\MemReader"
 #define DRIVER_USER_PATH      L"\\\\.\\MemReader"
+#define DRIVER_SERVICE_NAME   L"MemReader"
+#define DRIVER_FILE_NAME      L"MemReader.sys"
 
 #define IOCTL_READ_MEMORY     CTL_CODE(0x8000, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_GET_MODULE_BASE CTL_CODE(0x8000, 0x801, METHOD_BUFFERED, FILE_ANY_ACCESS)

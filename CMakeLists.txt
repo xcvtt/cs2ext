@@ -4,7 +4,11 @@ project(cs2ext)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_definitions(-DNOMINMAX)
+add_definitions(
+        -DNOMINMAX
+        -DIMGUI_DISABLE_DEMO_WINDOWS
+        -DIMGUI_DISABLE_DEBUG_TOOLS
+)
 
 include(FetchContent)
 
@@ -50,9 +54,14 @@ target_link_libraries(${PROJECT_NAME}
 
 # Compiler specific flags
 if (MSVC)
-
     target_compile_options(${PROJECT_NAME} PRIVATE
             /EHsc
+            /Ob2
+            /Oi
+            /GL
+            /GS-
+            /Gy
+            /Gw
     )
 
 else()

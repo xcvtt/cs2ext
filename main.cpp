@@ -7,7 +7,11 @@
 #include "settings.h"
 #include "utils.h"
 #include "offsets.h"
+#include "memory/imemory.h"
+#include "memory/memory_winapi.h"
+#include "memory/memory_syscall.h"
 #include "memory/memory_driver.h"
+#include "memory/driver_manager.h"
 #include "config.h"
 #include "menu.h"
 #include "crosshair.h"
@@ -17,25 +21,50 @@
 #include "visible_esp.h"
 #include "spectators.h"
 #include "radar.h"
-#include "memory/memory_winapi.h"
 
 static const char* CONFIG_PATH = "cs2esp.ini";
 static volatile bool g_running = true;
+static bool g_driver_backend_active = false;
 
 static void save_and_exit() {
     Config::save(CONFIG_PATH);
     printf("[+] Config saved\n");
 }
 
+// Cleanup that ALWAYS runs, no matter how we exit
+static void cleanup_on_exit() {
+    // Close memory backend (triggers driver unload if driver backend)
+    if (g_memory) {
+        g_memory->close();
+        g_memory.reset();
+    }
+
+    save_and_exit();
+}
+
 static BOOL WINAPI console_handler(DWORD event) {
     if (event == CTRL_C_EVENT || event == CTRL_CLOSE_EVENT ||
         event == CTRL_BREAK_EVENT || event == CTRL_LOGOFF_EVENT ||
-        event == CTRL_SHUTDOWN_EVENT) {
-        save_and_exit();
+        event == CTRL_SHUTDOWN_EVENT)
+    {
+        cleanup_on_exit();
         g_running = false;
         return TRUE;
     }
     return FALSE;
+}
+
+// Crash handler to ensure driver cleanup even on crash
+static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
+    UNREFERENCED_PARAMETER(ex);
+    printf("\n[!] Crash detected, cleaning up driver...\n");
+
+    // Force driver cleanup directly (g_memory might be in bad state)
+    if (g_driver_backend_active) {
+        DriverManager::full_cleanup();
+    }
+
+    return EXCEPTION_CONTINUE_SEARCH; // Let Windows handle the crash
 }
 
 enum MemoryBackend {
@@ -45,56 +74,114 @@ enum MemoryBackend {
 };
 
 std::unique_ptr<IMemory> CreateMemoryBackend(MemoryBackend backend) {
-    if (backend == WinApi) return std::make_unique<MemoryWinApi>();
-    if (backend == IndirectSyscall) return std::make_unique<MemorySyscall>();
-    if (backend == KernelDriver) return std::make_unique<MemoryDriver>();
-    throw std::runtime_error("invalid backend");
+    switch (backend) {
+    case WinApi:          return std::make_unique<MemoryWinApi>();
+    case IndirectSyscall: return std::make_unique<MemorySyscall>();
+    case KernelDriver:    return std::make_unique<MemoryDriver>();
+    default:              throw std::runtime_error("invalid backend");
+    }
 }
 
 int main() {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-
     ImGui_ImplWin32_EnableDpiAwareness();
 
+    // Set up all exit handlers FIRST
     SetConsoleCtrlHandler(console_handler, TRUE);
-    std::atexit(save_and_exit);
+    SetUnhandledExceptionFilter(crash_handler);
+    std::atexit([]() {
+        if (g_driver_backend_active) {
+            DriverManager::full_cleanup();
+        }
+    });
 
     if (Config::load(CONFIG_PATH))
         printf("[+] Config loaded\n");
 
     while (g_settings.memory_backend == -1) {
-        printf("Choose memory reading backend:\n");
-        printf("0. User-space (win api)\n");
-        printf("1. User-space (indirect syscalls)\n");
-        printf("2. Kernel-space driver (ioctl)\n");
+        printf("\nChoose memory reading backend:\n");
+        printf("  0. User-space (WinAPI)              - simplest, works everywhere\n");
+        printf("  1. User-space (indirect syscalls)    - slightly stealthier\n");
+        printf("  2. Kernel-space driver (IOCTL)       - requires admin + setup\n");
+        printf("\n> ");
 
         int backend = -1;
         scanf_s("%d", &backend);
         if (backend < 0 || backend > 2) {
-            printf("Wrong backend value: %d\n", backend);
+            printf("Invalid choice: %d\n", backend);
             continue;
         }
+
+        // If kernel driver, warn user about requirements
+        if (backend == 2) {
+            printf("\n");
+            printf("=== Kernel Driver Requirements ===\n");
+            printf("  - Run as Administrator\n");
+            printf("  - Secure Boot DISABLED in BIOS\n");
+            printf("  - Test signing will be enabled (requires reboot on first use)\n");
+            printf("  - 'Test Mode' watermark will appear on desktop\n");
+            printf("  - MemReader.sys must be next to this .exe\n");
+            printf("\n  The driver will be automatically loaded and unloaded.\n");
+            printf("  No permanent changes besides test signing.\n");
+            printf("\n  Continue? (y/n): ");
+
+            char c;
+            scanf_s(" %c", &c, 1);
+            if (c != 'y' && c != 'Y') {
+                printf("Cancelled. Choose another backend.\n");
+                continue;
+            }
+        }
+
         g_settings.memory_backend = backend;
     }
 
-    g_memory = CreateMemoryBackend(static_cast<MemoryBackend>(g_settings.memory_backend));
+    // Track if we're using driver backend (for cleanup handlers)
+    g_driver_backend_active = (g_settings.memory_backend == KernelDriver);
+
+    // Create and attach
+    try {
+        g_memory = CreateMemoryBackend(
+            static_cast<MemoryBackend>(g_settings.memory_backend));
+    }
+    catch (const std::exception& e) {
+        printf("[-] Failed to create backend: %s\n", e.what());
+        CoUninitialize();
+        return 1;
+    }
 
     if (!g_memory->attach(L"cs2.exe")) {
-        printf("[-] Failed to attach to cs2.exe. Is cs2 running?\n");
+        printf("[-] Failed to attach to cs2.exe.\n");
+
+        if (g_driver_backend_active) {
+            printf("[*] Cleaning up driver...\n");
+            g_memory->close();
+            g_memory.reset();
+            g_driver_backend_active = false;
+        }
+
+        CoUninitialize();
         return 1;
     }
 
     printf("[+] Attached to cs2.exe (PID: %lu)\n", g_memory->get_pid());
-    printf("[+] client.dll base: %llu\n",  g_memory->get_client_base());
+    printf("[+] client.dll base: 0x%llX\n",
+        (unsigned long long)g_memory->get_client_base());
+
+    if (g_driver_backend_active) {
+        printf("[+] Using KERNEL DRIVER for memory reads\n");
+    }
 
     if (!g_offsets.load("offsets/offsets.json", "offsets/client_dll.json")) {
-        printf("Failed to load offsets\n");
+        printf("[-] Failed to load offsets\n");
+        cleanup_on_exit();
         CoUninitialize();
         return 1;
     }
 
     if (!g_overlay.init(L"Counter-Strike 2")) {
-        printf("Overlay failed\n");
+        printf("[-] Overlay failed\n");
+        cleanup_on_exit();
         CoUninitialize();
         return 1;
     }
@@ -135,13 +222,14 @@ int main() {
             continue;
         }
 
-        FrameState state = entity_reader.read_frame(g_overlay.width, g_overlay.height);
+        FrameState state = entity_reader.read_frame(
+            g_overlay.width, g_overlay.height);
 
         if (state.entity_list) {
             if (++spec_tick >= 15) {
                 spec_tick = 0;
                 g_spectators.update(state.entity_list,
-                                    state.local.pawn, state.local.controller);
+                    state.local.pawn, state.local.controller);
             }
         }
 
@@ -149,12 +237,12 @@ int main() {
 
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
             g_esp.draw_player(draw, state.players[i], state.local.team,
-                              g_overlay.width, g_overlay.height, i, state.local.is_scoped);
+                g_overlay.width, g_overlay.height, i, state.local.is_scoped);
         }
 
         g_radar.draw(draw, state.radar_players, EntityList::MAX_PLAYERS,
-                     state.local.x, state.local.y, state.local.yaw, state.local.team, state.map_scale,
-                     g_overlay.width, g_overlay.height);
+            state.local.x, state.local.y, state.local.yaw, state.local.team,
+            state.map_scale, g_overlay.width, g_overlay.height);
 
         g_spectators.draw(g_overlay.width);
 
@@ -181,8 +269,11 @@ int main() {
         }
     }
 
+    // Clean exit
+    printf("\n[*] Shutting down...\n");
     g_weapon_icons.shutdown();
     g_overlay.shutdown();
+    cleanup_on_exit();
     CoUninitialize();
     return 0;
 }

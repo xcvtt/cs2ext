@@ -1,9 +1,9 @@
 #pragma once
 #include <Windows.h>
 #include <TlHelp32.h>
-#include <cstdint>
 #include <cstdio>
-#include <cstring>
+
+#include "memory_utils.h"
 
 // ─── NT Structures ───
 
@@ -309,15 +309,15 @@ private:
 
 // ─── Hardened Memory Class ───
 
-class Memory {
+class MemorySyscall : public IMemory {
 public:
-    Memory() = default;
-    ~Memory() { close(); }
+    MemorySyscall() = default;
+    ~MemorySyscall() override { close(); }
 
-    Memory(const Memory&) = delete;
-    Memory& operator=(const Memory&) = delete;
+    MemorySyscall(const MemorySyscall&) = delete;
+    MemorySyscall& operator=(const MemorySyscall&) = delete;
 
-    bool attach(const wchar_t* process_name) {
+    bool attach(const wchar_t* process_name) override {
         if (!initialized_) {
             if (!do_init()) return false;
             initialized_ = true;
@@ -352,7 +352,7 @@ public:
         return client_base_ != 0;
     }
 
-    void close() {
+    void close() override {
         if (process_ && invoker_.is_ready()) {
             using fn_t = NTSTATUS(NTAPI*)(HANDLE);
             auto fn = (fn_t)invoker_.get_stub(SyscallInvoker::IDX_CLOSE);
@@ -374,7 +374,7 @@ public:
         return value;
     }
 
-    bool read_raw(uintptr_t address, void* buffer, size_t size) const {
+    bool read_raw(uintptr_t address, void* buffer, size_t size) const override {
         if (!process_ || !invoker_.is_ready()) return false;
         SIZE_T br = 0;
         using fn_t = NTSTATUS(NTAPI*)(HANDLE, PVOID, PVOID, SIZE_T, PSIZE_T);
@@ -384,9 +384,8 @@ public:
         return s == 0 && br == size;
     }
 
-    bool is_valid() const { return process_ != nullptr; }
-    uintptr_t get_client_base() const { return client_base_; }
-    DWORD get_pid() const { return pid_; }
+    uintptr_t get_client_base() const override { return client_base_; }
+    DWORD get_pid() const override { return pid_; }
 
 private:
     HANDLE    process_     = nullptr;
@@ -408,24 +407,6 @@ private:
         return invoker_.is_ready();
     }
 
-    static DWORD find_process(const wchar_t* name) {
-        DWORD result = 0;
-        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snap == INVALID_HANDLE_VALUE) return 0;
-        PROCESSENTRY32W pe{};
-        pe.dwSize = sizeof(pe);
-        if (Process32FirstW(snap, &pe)) {
-            do {
-                if (!_wcsicmp(pe.szExeFile, name)) {
-                    result = pe.th32ProcessID;
-                    break;
-                }
-            } while (Process32NextW(snap, &pe));
-        }
-        CloseHandle(snap);
-        return result;
-    }
-
     static uintptr_t get_module_base(DWORD p, const wchar_t* mod) {
         uintptr_t base = 0;
         HANDLE snap = CreateToolhelp32Snapshot(
@@ -445,5 +426,3 @@ private:
         return base;
     }
 };
-
-inline Memory g_memory;

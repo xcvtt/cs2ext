@@ -4,9 +4,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
-#include <iostream>
 #include <nlohmann/json.hpp>
-#include "memory.h"
+#include "memory/imemory.h"
 
 struct Offsets {
     struct {
@@ -160,19 +159,19 @@ private:
     }
 
     TestResult functional_test() {
-        uintptr_t client_base = g_memory.get_client_base();
+        uintptr_t client_base = g_memory->get_client_base();
         if (!client_base) {
             printf("[!] client_base is 0\n");
             return TestResult::OFFSETS_WRONG;
         }
 
-        uintptr_t entity_list = g_memory.read<uintptr_t>(client_base + client.dwEntityList);
+        uintptr_t entity_list = g_memory->read<uintptr_t>(client_base + client.dwEntityList);
         if (!entity_list) {
             printf("[!] entity_list is null (offset 0x%X)\n", client.dwEntityList);
             return TestResult::OFFSETS_WRONG;
         }
 
-        uintptr_t first_page = g_memory.read<uintptr_t>(entity_list + 16);
+        uintptr_t first_page = g_memory->read<uintptr_t>(entity_list + 16);
         if (!first_page) {
             return TestResult::NO_PLAYERS;
         }
@@ -181,27 +180,27 @@ private:
         int bogus_reads = 0;
 
         for (int i = 1; i < 64; i++) {
-            uintptr_t controller = g_memory.read<uintptr_t>(first_page + 112 * (i & 0x1FF));
+            uintptr_t controller = g_memory->read<uintptr_t>(first_page + 112 * (i & 0x1FF));
             if (!controller) continue;
 
-            uint32_t pawn_handle = g_memory.read<uint32_t>(
+            uint32_t pawn_handle = g_memory->read<uint32_t>(
                 controller + CCSPlayerController.m_hPawn);
             if (!pawn_handle) {
-                pawn_handle = g_memory.read<uint32_t>(
+                pawn_handle = g_memory->read<uint32_t>(
                     controller + CCSPlayerController.m_hPlayerPawn);
             }
             if (!pawn_handle) continue;
 
-            uintptr_t pawn_page = g_memory.read<uintptr_t>(
+            uintptr_t pawn_page = g_memory->read<uintptr_t>(
                 entity_list + 8 * ((pawn_handle & 0x7FFF) >> 9) + 16);
             if (!pawn_page) continue;
 
-            uintptr_t pawn = g_memory.read<uintptr_t>(
+            uintptr_t pawn = g_memory->read<uintptr_t>(
                 pawn_page + 112 * (pawn_handle & 0x1FF));
             if (!pawn) continue;
 
-            int team = g_memory.read<int>(pawn + C_BaseEntity.m_iTeamNum);
-            int health = g_memory.read<int>(pawn + C_BaseEntity.m_iHealth);
+            int team = g_memory->read<int>(pawn + C_BaseEntity.m_iTeamNum);
+            int health = g_memory->read<int>(pawn + C_BaseEntity.m_iHealth);
 
             if (team >= 0 && team <= 3) {
                 if (health >= 0 && health <= 100) {

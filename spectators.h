@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include "memory.h"
+#include "memory/memory_syscall.h"
 #include "offsets.h"
 #include "settings.h"
 #include "entity_utils.h"
@@ -20,18 +20,18 @@ public:
         uint32_t local_handle_player = 0;
         uint32_t local_handle_pawn = 0;
         if (local_controller) {
-            local_handle_player = g_memory.read<uint32_t>(
+            local_handle_player = g_memory->read<uint32_t>(
                 local_controller + g_offsets.CCSPlayerController.m_hPlayerPawn);
-            local_handle_pawn = g_memory.read<uint32_t>(
+            local_handle_pawn = g_memory->read<uint32_t>(
                 local_controller + g_offsets.CCSPlayerController.m_hPawn);
         }
 
-        uintptr_t first_page = g_memory.read<uintptr_t>(
+        uintptr_t first_page = g_memory->read<uintptr_t>(
             entity_list + EntityList::PAGE_HEADER);
         if (!first_page) return;
 
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
-            uintptr_t controller = g_memory.read<uintptr_t>(
+            uintptr_t controller = g_memory->read<uintptr_t>(
                 first_page + EntityList::ENTRY_STRIDE * (i & EntityList::INDEX_MASK));
             if (!controller || controller == local_controller) continue;
 
@@ -45,15 +45,15 @@ public:
             uintptr_t pawn = EntityList::resolve_handle(entity_list, pawn_handle);
             if (!pawn || pawn == local_pawn) continue;
 
-            int health = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iHealth);
-            int team = g_memory.read<int>(pawn + g_offsets.C_BaseEntity.m_iTeamNum);
+            int health = g_memory->read<int>(pawn + g_offsets.C_BaseEntity.m_iHealth);
+            int team = g_memory->read<int>(pawn + g_offsets.C_BaseEntity.m_iTeamNum);
             if (health > 0 && team != 1) continue;
 
-            uintptr_t obs_svc = g_memory.read<uintptr_t>(
+            uintptr_t obs_svc = g_memory->read<uintptr_t>(
                 pawn + g_offsets.C_BasePlayerPawn.m_pObserverServices);
             if (!obs_svc) continue;
 
-            uint32_t obs_target = g_memory.read<uint32_t>(
+            uint32_t obs_target = g_memory->read<uint32_t>(
                 obs_svc + g_offsets.CPlayer_ObserverServices.m_hObserverTarget);
             if (!obs_target || obs_target == 0xFFFFFFFF) continue;
 

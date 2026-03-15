@@ -1,7 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <cstddef>
-#include "memory.h"
 #include "offsets.h"
 
 namespace EntityList {
@@ -14,12 +12,12 @@ namespace EntityList {
     constexpr int MAX_PLAYERS = 64;
 
     inline uintptr_t get_page(uintptr_t list, uint32_t handle) {
-        return g_memory.read<uintptr_t>(
+        return g_memory->read<uintptr_t>(
             list + PAGE_PTR_SIZE * ((handle & HANDLE_MASK) >> PAGE_SHIFT) + PAGE_HEADER);
     }
 
     inline uintptr_t get_entry(uintptr_t page, uint32_t handle) {
-        return g_memory.read<uintptr_t>(page + ENTRY_STRIDE * (handle & INDEX_MASK));
+        return g_memory->read<uintptr_t>(page + ENTRY_STRIDE * (handle & INDEX_MASK));
     }
 
     inline uintptr_t resolve_handle(uintptr_t list, uint32_t handle) {
@@ -31,20 +29,20 @@ namespace EntityList {
 }
 
 inline uint32_t get_pawn_handle(uintptr_t controller) {
-    uint32_t h = g_memory.read<uint32_t>(
+    uint32_t h = g_memory->read<uint32_t>(
         controller + g_offsets.CCSPlayerController.m_hPawn);
     if (!h)
-        h = g_memory.read<uint32_t>(
+        h = g_memory->read<uint32_t>(
             controller + g_offsets.CCSPlayerController.m_hPlayerPawn);
     return h;
 }
 
 inline void read_player_name(uintptr_t controller, char* out, size_t max_len) {
     out[0] = 0;
-    uintptr_t ptr = g_memory.read<uintptr_t>(
+    uintptr_t ptr = g_memory->read<uintptr_t>(
         controller + g_offsets.CCSPlayerController.m_sSanitizedPlayerName);
     if (!ptr) return;
-    g_memory.read_raw(ptr, out, max_len - 1);
+    g_memory->read_raw(ptr, out, max_len - 1);
     out[max_len - 1] = 0;
     for (size_t i = 0; out[i]; i++)
         if ((unsigned char)out[i] < 0x20) out[i] = ' ';

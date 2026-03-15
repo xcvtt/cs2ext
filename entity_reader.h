@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cstring>
 #include "types.h"
-#include "memory.h"
+#include "memory/memory_syscall.h"
 #include "offsets.h"
 #include "entity_utils.h"
 
@@ -157,17 +157,17 @@ public:
         FrameState state{};
 
         // --- NEW: Read GlobalVars for Map Scale (Cached) ---
-        uintptr_t global_vars = g_memory.read<uintptr_t>(
-            g_memory.get_client_base() + g_offsets.client.dwGlobalVars);
+        uintptr_t global_vars = g_memory->read<uintptr_t>(
+            g_memory->get_client_base() + g_offsets.client.dwGlobalVars);
 
         if (global_vars) {
             // 0x188 is the standard offset for m_currentMapName in CGlobalVarsBase
-            uintptr_t current_map_ptr = g_memory.read<uintptr_t>(global_vars + 0x188);
+            uintptr_t current_map_ptr = g_memory->read<uintptr_t>(global_vars + 0x188);
 
             // If the pointer changed (e.g., map changed or joined new server), read the new string
             if (current_map_ptr != cached_map_ptr && current_map_ptr != 0) {
                 char map_name[64] = {0};
-                if (g_memory.read_raw(current_map_ptr, map_name, sizeof(map_name))) {
+                if (g_memory->read_raw(current_map_ptr, map_name, sizeof(map_name))) {
                     cached_map_scale = get_map_scale(map_name);
                     cached_map_ptr = current_map_ptr;
                 }
@@ -177,20 +177,20 @@ public:
         // ---------------------------------------------------
 
         // --- 1 RPM: view matrix ---
-        g_memory.read_raw(g_memory.get_client_base() + g_offsets.client.dwViewMatrix,
+        g_memory->read_raw(g_memory->get_client_base() + g_offsets.client.dwViewMatrix,
                           &state.view_matrix, 64);
 
         // --- 1 RPM: local pawn ptr ---
-        state.local.pawn = g_memory.read<uintptr_t>(
-            g_memory.get_client_base() + g_offsets.client.dwLocalPlayerPawn);
+        state.local.pawn = g_memory->read<uintptr_t>(
+            g_memory->get_client_base() + g_offsets.client.dwLocalPlayerPawn);
         // --- 1 RPM: local controller ptr ---
-        state.local.controller = g_memory.read<uintptr_t>(
-            g_memory.get_client_base() + g_offsets.client.dwLocalPlayerController);
+        state.local.controller = g_memory->read<uintptr_t>(
+            g_memory->get_client_base() + g_offsets.client.dwLocalPlayerController);
 
         if (state.local.pawn) {
             // --- 1 RPM: bulk-read local pawn snapshot ---
             PawnSnapshot local_snap{};
-            g_memory.read_raw(state.local.pawn, local_snap.buf, PawnSnapshot::SIZE);
+            g_memory->read_raw(state.local.pawn, local_snap.buf, PawnSnapshot::SIZE);
 
             state.local.team = local_snap.get<int>(g_offsets.C_BaseEntity.m_iTeamNum);
             state.local.is_scoped = local_snap.get<bool>(g_offsets.C_CSPlayerPawn.m_bIsScoped);
@@ -199,7 +199,7 @@ public:
                 g_offsets.C_BaseEntity.m_pGameSceneNode);
             if (local_scene) {
                 // --- 1 RPM: local scene origin ---
-                Vec3 origin = g_memory.read<Vec3>(
+                Vec3 origin = g_memory->read<Vec3>(
                     local_scene + g_offsets.CGameSceneNode.m_vecAbsOrigin);
                 state.local.x = origin.x;
                 state.local.y = origin.y;
@@ -210,12 +210,12 @@ public:
         }
 
         // --- 1 RPM: entity list ptr ---
-        state.entity_list = g_memory.read<uintptr_t>(
-            g_memory.get_client_base() + g_offsets.client.dwEntityList);
+        state.entity_list = g_memory->read<uintptr_t>(
+            g_memory->get_client_base() + g_offsets.client.dwEntityList);
         if (!state.entity_list) return state;
 
         // --- 1 RPM: first page ptr ---
-        uintptr_t first_page = g_memory.read<uintptr_t>(
+        uintptr_t first_page = g_memory->read<uintptr_t>(
             state.entity_list + EntityList::PAGE_HEADER);
         if (!first_page) return state;
 
@@ -230,7 +230,7 @@ public:
             EntityList::ENTRY_STRIDE * 512;
         static uint8_t page_buf[PAGE_BUF_SIZE];
 
-        if (!g_memory.read_raw(first_page, page_buf, PAGE_BUF_SIZE))
+        if (!g_memory->read_raw(first_page, page_buf, PAGE_BUF_SIZE))
             return state;
 
         for (int i = 1; i < EntityList::MAX_PLAYERS; i++) {
@@ -258,12 +258,12 @@ private:
         out_def_index = 0;
 
         // --- 1 RPM: weapon ptr ---
-        uintptr_t weapon = g_memory.read<uintptr_t>(
+        uintptr_t weapon = g_memory->read<uintptr_t>(
             pawn + g_offsets.C_CSPlayerPawnBase.m_pClippingWeapon);
         if (!weapon) return;
 
         // --- 1 RPM: def index ---
-        uint16_t def_index = g_memory.read<uint16_t>(
+        uint16_t def_index = g_memory->read<uint16_t>(
             weapon + g_offsets.C_EconEntity.m_AttributeManager
                    + g_offsets.C_AttributeContainer.m_Item
                    + g_offsets.C_EconItemView.m_iItemDefinitionIndex);
@@ -297,7 +297,7 @@ private:
         // Now: 1 RPM call, then local memcpy for each field.
         // ---------------------------------------------------------------
         PawnSnapshot snap{};
-        if (!g_memory.read_raw(pawn, snap.buf, PawnSnapshot::SIZE)) return;
+        if (!g_memory->read_raw(pawn, snap.buf, PawnSnapshot::SIZE)) return;
 
         int health = snap.get<int>(g_offsets.C_BaseEntity.m_iHealth);
         if (health <= 0) return;
@@ -308,16 +308,16 @@ private:
         if (!scene_node) return;
 
         // --- 1 RPM: scene origin (external ptr, can't batch with pawn) ---
-        Vec3 origin = g_memory.read<Vec3>(
+        Vec3 origin = g_memory->read<Vec3>(
             scene_node + g_offsets.CGameSceneNode.m_vecAbsOrigin);
 
         // --- 1 RPM: bone array ptr (inside scene_node) ---
-        uintptr_t bone_array = g_memory.read<uintptr_t>(
+        uintptr_t bone_array = g_memory->read<uintptr_t>(
             scene_node + g_offsets.CSkeletonInstance.m_modelState + 0x80);
         if (!bone_array) return;
 
         // --- 1 RPM: all bones in one read ---
-        if (!g_memory.read_raw(bone_array, bone_buf, sizeof(bone_buf))) return;
+        if (!g_memory->read_raw(bone_array, bone_buf, sizeof(bone_buf))) return;
 
         auto& player = state.players[i];
         player.valid = true;
@@ -336,7 +336,7 @@ private:
                 player.screens[b], player.depths[b]);
 
 
-        const bool is_spotted_ingame = g_memory.read<bool>(pawn
+        const bool is_spotted_ingame = g_memory->read<bool>(pawn
             + g_offsets.C_CSPlayerPawn.m_entitySpottedState
             + g_offsets.EntitySpottedState_t.m_bSpotted);
 

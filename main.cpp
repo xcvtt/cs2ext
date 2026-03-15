@@ -7,7 +7,7 @@
 #include "settings.h"
 #include "utils.h"
 #include "offsets.h"
-#include "memory.h"
+#include "memory/memory_driver.h"
 #include "config.h"
 #include "menu.h"
 #include "crosshair.h"
@@ -17,6 +17,7 @@
 #include "visible_esp.h"
 #include "spectators.h"
 #include "radar.h"
+#include "memory/memory_winapi.h"
 
 static const char* CONFIG_PATH = "cs2esp.ini";
 static volatile bool g_running = true;
@@ -37,6 +38,19 @@ static BOOL WINAPI console_handler(DWORD event) {
     return FALSE;
 }
 
+enum MemoryBackend {
+    WinApi = 0,
+    IndirectSyscall = 1,
+    KernelDriver = 2,
+};
+
+std::unique_ptr<IMemory> CreateMemoryBackend(MemoryBackend backend) {
+    if (backend == WinApi) return std::make_unique<MemoryWinApi>();
+    if (backend == IndirectSyscall) return std::make_unique<MemorySyscall>();
+    if (backend == KernelDriver) return std::make_unique<MemoryDriver>();
+    throw std::runtime_error("invalid backend");
+}
+
 int main() {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
@@ -48,12 +62,30 @@ int main() {
     if (Config::load(CONFIG_PATH))
         printf("[+] Config loaded\n");
 
-    if (!g_memory.attach(L"cs2.exe")) {
-        printf("cs2.exe not found\n");
-        CoUninitialize();
+    while (g_settings.memory_backend == -1) {
+        printf("Choose memory reading backend:\n");
+        printf("0. User-space (win api)\n");
+        printf("1. User-space (indirect syscalls)\n");
+        printf("2. Kernel-space driver (ioctl)\n");
+
+        int backend = -1;
+        scanf_s("%d", &backend);
+        if (backend < 0 || backend > 2) {
+            printf("Wrong backend value: %d\n", backend);
+            continue;
+        }
+        g_settings.memory_backend = backend;
+    }
+
+    g_memory = CreateMemoryBackend(static_cast<MemoryBackend>(g_settings.memory_backend));
+
+    if (!g_memory->attach(L"cs2.exe")) {
+        printf("[-] Failed to attach to cs2.exe. Is cs2 running?\n");
         return 1;
     }
-    printf("[+] Attached (client.dll @ 0x%llX)\n", g_memory.get_client_base());
+
+    printf("[+] Attached to cs2.exe (PID: %lu)\n", g_memory->get_pid());
+    printf("[+] client.dll base: %llu\n",  g_memory->get_client_base());
 
     if (!g_offsets.load("offsets/offsets.json", "offsets/client_dll.json")) {
         printf("Failed to load offsets\n");

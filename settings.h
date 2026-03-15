@@ -1,6 +1,8 @@
 #pragma once
 
 struct MenuSettings {
+    int memory_backend = -1;
+
     bool master_switch = true;
     bool esp_enabled = true;
     bool draw_box = true;

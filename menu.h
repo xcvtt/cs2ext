@@ -85,6 +85,19 @@ private:
         ImGui::EndDisabled();
         ImGui::TextColored({0.5f, 0.5f, 0.5f, 1}, "Higher = smoother ESP");
 
+        ImGui::Text("Memory backend");
+
+        static bool backend_changed = false;
+
+        backend_changed |= ImGui::RadioButton("WinApi", &g_settings.memory_backend, 0);
+        ImGui::SameLine();
+        backend_changed |= ImGui::RadioButton("Syscall", &g_settings.memory_backend, 1);
+        ImGui::SameLine();
+        backend_changed |= ImGui::RadioButton("Kernel", &g_settings.memory_backend, 2);
+
+        if (backend_changed)
+            ImGui::TextColored(ImVec4(1,0.4f,0.2f,1), "Restart required to apply");
+
         ImGui::Separator();
         if (ImGui::Button("Reset All Settings")) reset_popup_open = true;
         if (reset_popup_open) {

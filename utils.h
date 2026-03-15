@@ -1,18 +1,33 @@
 #pragma once
 #include <chrono>
 #include <thread>
-#include <Windows.h>
+
+#include <windows.h>
+#pragma comment(lib, "winmm.lib")
 
 inline void limit_frame(std::chrono::high_resolution_clock::time_point frame_start,
                         double target_fps) {
     using namespace std::chrono;
-    nanoseconds target(static_cast<long long>(1'000'000'000.0 / target_fps));
-    nanoseconds remaining = target - (high_resolution_clock::now() - frame_start);
-    if (remaining > nanoseconds::zero()) {
-        nanoseconds sleep_time = remaining - milliseconds(2);
-        if (sleep_time > nanoseconds::zero())
-            std::this_thread::sleep_for(sleep_time);
-        while (high_resolution_clock::now() - frame_start < target) {}
+
+    static bool timer_initialized = false;
+    if (!timer_initialized) {
+        timeBeginPeriod(1);
+        timer_initialized = true;
+    }
+
+    long long target_ns = static_cast<long long>(1'000'000'000.0 / target_fps);
+    nanoseconds target(target_ns);
+
+    nanoseconds elapsed = high_resolution_clock::now() - frame_start;
+    nanoseconds remaining = target - elapsed;
+
+    if (remaining > milliseconds(2)) {
+        nanoseconds sleep_time = remaining - microseconds(1500);
+        std::this_thread::sleep_for(sleep_time);
+    }
+
+    while (high_resolution_clock::now() - frame_start < target) {
+        _mm_pause();
     }
 }
 

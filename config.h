@@ -11,6 +11,9 @@ public:
         std::ofstream f(path);
         if (!f) return false;
 
+        f << "[MEMORY BACKEND]\n";
+        write(f, "backend", g_settings.memory_backend);
+
         f << "[ESP]\n";
         write(f, "master_switch", g_settings.master_switch);
         write(f, "esp_enabled", g_settings.esp_enabled);
@@ -149,6 +152,7 @@ public:
             kv[key] = val;
         }
 
+        read(kv, "backend", g_settings.memory_backend);
         read(kv, "master_switch", g_settings.master_switch);
         read(kv, "esp_enabled", g_settings.esp_enabled);
         read(kv,     "esp_use_theme",       g_settings.esp_use_theme);

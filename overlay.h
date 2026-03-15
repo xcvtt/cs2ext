@@ -231,7 +231,7 @@ public:
         // WAITABLE SWAPCHAIN: skip GPU work when DWM queue is full.
         // CPU loop keeps running at full speed; GPU only draws at monitor refresh rate.
         if (frame_latency_waitable_object) {
-            if (WaitForSingleObject(frame_latency_waitable_object, 1) == WAIT_TIMEOUT)
+            if (WaitForSingleObject(frame_latency_waitable_object, 0) == WAIT_TIMEOUT)
                 return;
         }
 

@@ -50,6 +50,8 @@ target_link_libraries(${PROJECT_NAME}
         dwmapi
         windowscodecs
         ole32
+        dxgi
+        dcomp
 )
 
 # Compiler specific flags

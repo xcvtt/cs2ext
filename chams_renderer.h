@@ -12,23 +12,29 @@ struct ColorSet {
     ImU32 fill, outline, glow, wire, head_fill;
 };
 
-inline ColorSet get_enemy_colors() {
+inline ImU32 apply_opacity(ImU32 col, float opacity) {
+    if (opacity >= 1.0f) return col;
+    ImU32 a = (ImU32)(((col >> 24) & 0xFF) * opacity);
+    return (col & 0x00FFFFFF) | (a << 24);
+}
+
+inline ColorSet get_enemy_colors(float opacity = 1.0f) {
+    ImU32 fill    = apply_opacity(float4_to_col(g_settings.enemy_fill),    opacity);
+    ImU32 outline = apply_opacity(float4_to_col(g_settings.enemy_outline), opacity);
+    ImU32 glow    = apply_opacity(float4_to_col(g_settings.enemy_glow),    opacity);
     return {
-        float4_to_col(g_settings.enemy_fill),
-        float4_to_col(g_settings.enemy_outline),
-        float4_to_col(g_settings.enemy_glow),
-        float4_to_col(g_settings.enemy_outline),
-        (float4_to_col(g_settings.enemy_fill) & 0x00FFFFFF) | 0x60000000,
+        fill, outline, glow, outline,
+        apply_opacity((fill & 0x00FFFFFF) | 0x60000000, opacity),
     };
 }
 
-inline ColorSet get_team_colors() {
+inline ColorSet get_team_colors(float opacity = 1.0f) {
+    ImU32 fill    = apply_opacity(float4_to_col(g_settings.team_fill),    opacity);
+    ImU32 outline = apply_opacity(float4_to_col(g_settings.team_outline), opacity);
+    ImU32 glow    = apply_opacity(float4_to_col(g_settings.team_glow),    opacity);
     return {
-        float4_to_col(g_settings.team_fill),
-        float4_to_col(g_settings.team_outline),
-        float4_to_col(g_settings.team_glow),
-        float4_to_col(g_settings.team_outline),
-        (float4_to_col(g_settings.team_fill) & 0x00FFFFFF) | 0x60000000,
+        fill, outline, glow, outline,
+        apply_opacity((fill & 0x00FFFFFF) | 0x60000000, opacity),
     };
 }
 

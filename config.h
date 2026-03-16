@@ -27,6 +27,10 @@ public:
         write(f, "chams_style", g_settings.chams_style);
         write(f, "esp_use_theme",          g_settings.esp_use_theme);
         write_arr(f, "esp_theme_color",    g_settings.esp_theme_color, 4);
+        write(f, "esp_opacity_drop",       g_settings.esp_opacity_drop);
+        write(f, "esp_opacity_drop_start", g_settings.esp_opacity_drop_start);
+        write(f, "esp_opacity_drop_end",   g_settings.esp_opacity_drop_end);
+        write(f, "esp_opacity_drop_min",   g_settings.esp_opacity_drop_min);
 
         f << "\n[Font]\n";
         write(f, "esp_font_index", g_settings.esp_font_index);
@@ -68,7 +72,8 @@ public:
         write(f, "radar_circle", g_settings.radar_circle);
         write(f, "radar_rotate", g_settings.radar_rotate);
         write(f, "radar_rings", g_settings.radar_rings);
-        write(f, "radar_names", g_settings.radar_names);
+        write(f, "radar_names",           g_settings.radar_names);
+        write(f, "radar_names_font_size", g_settings.radar_names_font_size);
         write(f, "radar_size", g_settings.radar_size);
         write(f, "radar_zoom", g_settings.radar_zoom);
         write(f, "radar_bg_alpha", g_settings.radar_bg_alpha);
@@ -157,6 +162,10 @@ public:
         read(kv, "esp_enabled", g_settings.esp_enabled);
         read(kv,     "esp_use_theme",       g_settings.esp_use_theme);
         read_arr(kv, "esp_theme_color",     g_settings.esp_theme_color, 4);
+        read(kv, "esp_opacity_drop",       g_settings.esp_opacity_drop);
+        read(kv, "esp_opacity_drop_start", g_settings.esp_opacity_drop_start);
+        read(kv, "esp_opacity_drop_end",   g_settings.esp_opacity_drop_end);
+        read(kv, "esp_opacity_drop_min",   g_settings.esp_opacity_drop_min);
         read(kv,     "healthbar_solid_color", g_settings.healthbar_solid_color);
         read_arr(kv, "healthbar_color",     g_settings.healthbar_color, 4);
         read(kv, "draw_box", g_settings.draw_box);
@@ -194,7 +203,8 @@ public:
         read(kv, "radar_circle", g_settings.radar_circle);
         read(kv, "radar_rotate", g_settings.radar_rotate);
         read(kv, "radar_rings", g_settings.radar_rings);
-        read(kv, "radar_names", g_settings.radar_names);
+        read(kv, "radar_names",           g_settings.radar_names);
+        read(kv, "radar_names_font_size", g_settings.radar_names_font_size);
         read(kv, "radar_size", g_settings.radar_size);
         read(kv, "radar_zoom", g_settings.radar_zoom);
         read(kv, "radar_bg_alpha", g_settings.radar_bg_alpha);

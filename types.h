@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "settings.h"
+
 struct Vec3 { float x, y, z; };
 struct Matrix4x4 { float m[4][4]; };
 struct CBoneData { Vec3 pos; float scale; float quat[4]; };

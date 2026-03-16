@@ -189,6 +189,27 @@ private:
         ImGui::Separator();
 
         // ================================================================
+        // DISTANCE OPACITY
+        // ================================================================
+        ImGui::Checkbox("Distance Opacity Drop", &g_settings.esp_opacity_drop);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Fade out ESP elements with distance.\nDoes not affect radar or spectator list.");
+        if (g_settings.esp_opacity_drop) {
+            ImGui::Indent();
+            ImGui::SliderFloat("Fade Start##opd", &g_settings.esp_opacity_drop_start,
+                               100.0f, 3000.0f, "%.0f units");
+            ImGui::SliderFloat("Fade End##opd",   &g_settings.esp_opacity_drop_end,
+                               200.0f, 5000.0f, "%.0f units");
+            ImGui::SliderFloat("Min Opacity##opd", &g_settings.esp_opacity_drop_min,
+                               0.0f, 1.0f, "%.2f");
+            // Clamp: start must be less than end
+            if (g_settings.esp_opacity_drop_start >= g_settings.esp_opacity_drop_end)
+                g_settings.esp_opacity_drop_start = g_settings.esp_opacity_drop_end - 100.0f;
+            ImGui::Unindent();
+        }
+        ImGui::Separator();
+
+        // ================================================================
         //  BOX
         // ================================================================
         ImGui::Checkbox("Box", &g_settings.draw_box);
@@ -360,6 +381,12 @@ private:
         ImGui::Checkbox("Rotate with View", &g_settings.radar_rotate);
         ImGui::Checkbox("Range Rings", &g_settings.radar_rings);
         ImGui::Checkbox("Player Names", &g_settings.radar_names);
+        if (g_settings.radar_names) {
+            ImGui::Indent();
+            ImGui::SliderFloat("Names Font##rnf", &g_settings.radar_names_font_size,
+                               8.0f, 20.0f, "%.0f");
+            ImGui::Unindent();
+        }
         ImGui::Separator();
         ImGui::SliderFloat("Size", &g_settings.radar_size, 100, 400, "%.0f");
         ImGui::SliderFloat("Zoom", &g_settings.radar_zoom, 0.1f, 1.0f, "%.2fx");

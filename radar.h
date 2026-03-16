@@ -103,13 +103,15 @@ public:
             draw->AddCircle({px, py}, dot_r, IM_COL32(0, 0, 0, 100), 12, 1.0f);
 
             if (g_settings.radar_names && players[i].name[0]) {
-                ImVec2 ts = ImGui::CalcTextSize(players[i].name);
+                ImFont* rfont = ImGui::GetFont();
+                float   rfs   = g_settings.radar_names_font_size;
+                ImVec2 ts = rfont->CalcTextSizeA(rfs, FLT_MAX, 0.0f, players[i].name);
                 float tx = px - ts.x * 0.5f;
                 float ty = py - dot_r - ts.y - 1;
                 tx = std::clamp(tx, rx + 2, rx + size - ts.x - 2);
                 ty = std::clamp(ty, ry + 2, ry + size - ts.y - 2);
-                draw->AddText({tx + 1, ty + 1}, IM_COL32(0, 0, 0, 160), players[i].name);
-                draw->AddText({tx, ty}, IM_COL32(255, 255, 255, 180), players[i].name);
+                draw->AddText(rfont, rfs, {tx + 1, ty + 1}, IM_COL32(0, 0, 0, 160), players[i].name);
+                draw->AddText(rfont, rfs, {tx, ty},         IM_COL32(255, 255, 255, 180), players[i].name);
             }
         }
 

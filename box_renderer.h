@@ -18,8 +18,9 @@ public:
     static constexpr float PLAYER_ASPECT = 0.48f;
 
     void draw_box_hp_name(ImDrawList* d, const PlayerVisuals& p,
-                          const ColorSet& c, int idx, bool is_scoped,
-                          ImFont* font, float font_size) {
+                              const ColorSet& c, int idx, bool is_scoped,
+                              ImFont* font, float font_size,
+                              float opacity = 1.0f) {
         float raw_top = 1e9f, raw_bot = -1e9f;
         float center_x_sum = 0;
         int center_cnt = 0;
@@ -70,22 +71,22 @@ public:
         float box_thick = g_settings.box_thickness;
 
         if (g_settings.draw_box)
-            draw_box(d, x0, y0, x1, y1, box_thick, c);
+            draw_box(d, x0, y0, x1, y1, box_thick, c, opacity);
 
         if (g_settings.draw_healthbar)
             draw_healthbar(d, x0, y0, x1, y1, p.health, p.team, font,
-                           g_settings.hp_font_size);
+                           g_settings.hp_font_size, opacity);
 
         if (g_settings.draw_name && p.name[0] && font)
-            draw_name(d, x0, y0, x1, y1, p.name, font, avg_depth);
+            draw_name(d, x0, y0, x1, y1, p.name, font, avg_depth, opacity);
 
         if (g_settings.draw_weapon && (p.weapon[0] || p.weapon_def_index) && font)
-            draw_weapon(d, x0, y0, x1, y1, p, font, avg_depth);
+            draw_weapon(d, x0, y0, x1, y1, p, font, avg_depth, opacity);
     }
 
 private:
     void draw_box(ImDrawList* d, float x0, float y0, float x1, float y1,
-                  float box_thick, const ColorSet& c) {
+                  float box_thick, const ColorSet& c, float opacity) {
         BoxStyle style = static_cast<BoxStyle>(g_settings.box_style);
 
         x0 = floorf(x0); y0 = floorf(y0);
@@ -98,7 +99,7 @@ private:
             float max_corner = std::min(w, h) * 0.45f;
             float corner = std::clamp(raw_corner, 2.0f, std::max(max_corner, 2.0f));
 
-            ImU32 bg = IM_COL32(0, 0, 0, 140);
+            ImU32 bg = apply_opacity(IM_COL32(0, 0, 0, 140), opacity);
 
             auto draw_corner = [&](ImVec2 tip, ImVec2 h_end, ImVec2 v_end) {
                 ImVec2 bg_pts[3] = {v_end, tip, h_end};
@@ -114,7 +115,7 @@ private:
             break;
         }
         case BoxStyle::FULL: {
-            ImU32 bg = IM_COL32(0, 0, 0, 140);
+            ImU32 bg = apply_opacity(IM_COL32(0, 0, 0, 140), opacity);
             d->AddRect({x0, y0}, {x1, y1}, bg, 0, 0, box_thick + 2.0f);
             d->AddRect({x0, y0}, {x1, y1}, c.outline, 0, 0, box_thick);
             break;
@@ -134,7 +135,7 @@ private:
                     pos = end + gap;
                 }
             };
-            ImU32 bg = IM_COL32(0, 0, 0, 100);
+            ImU32 bg = apply_opacity(IM_COL32(0, 0, 0, 100), opacity);
             dashed_line({x0, y0}, {x1, y0}, bg, box_thick + 2);
             dashed_line({x1, y0}, {x1, y1}, bg, box_thick + 2);
             dashed_line({x1, y1}, {x0, y1}, bg, box_thick + 2);
@@ -149,23 +150,24 @@ private:
     }
 
     void draw_healthbar(ImDrawList* d, float x0, float y0, float x1, float y1,
-                        int health, int /*team*/, ImFont* font, float hp_font_size)
+                        int health, int team, ImFont* font, float hp_font_size,
+                        float opacity)
     {
         float bw = 3, bx = x0 - bw - 4, bh = y1 - y0;
         float hp = std::clamp(health / 100.0f, 0.0f, 1.0f);
         float filled = bh * hp;
 
-        d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, IM_COL32(0, 0, 0, 140));
-        d->AddRectFilled({bx, y0}, {bx + bw, y1}, IM_COL32(20, 20, 20, 180));
+        d->AddRectFilled({bx - 1, y0 - 1}, {bx + bw + 1, y1 + 1}, apply_opacity(IM_COL32(0, 0, 0, 140), opacity));
+        d->AddRectFilled({bx, y0}, {bx + bw, y1}, apply_opacity(IM_COL32(20, 20, 20, 180), opacity));
 
         if (g_settings.healthbar_solid_color) {
-            ImU32 bar_col = float4_to_col(g_settings.healthbar_color);
+            ImU32 bar_col = apply_opacity(float4_to_col(g_settings.healthbar_color), opacity);
             d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1}, bar_col);
         } else {
             uint8_t r = (uint8_t)(255 * (1.0f - hp));
             uint8_t g = (uint8_t)(255 * hp);
             d->AddRectFilled({bx, y0 + (bh - filled)}, {bx + bw, y1},
-                             IM_COL32(r, g, 0, 230));
+                             apply_opacity(IM_COL32(r, g, 0, 230), opacity));
         }
 
         if (g_settings.draw_health_text && health < 100 && font) {
@@ -181,8 +183,8 @@ private:
             tx = floorf(tx);
             ty = floorf(ty);
 
-            ImU32 outline_col = float4_to_col(g_settings.hp_text_shadow_color);
-            ImU32 text_col   = float4_to_col(g_settings.hp_text_color);
+            ImU32 outline_col = apply_opacity(float4_to_col(g_settings.hp_text_shadow_color), opacity);
+            ImU32 text_col   = apply_opacity(float4_to_col(g_settings.hp_text_color), opacity);
 
             if (g_settings.hp_text_shadow) {
                 d->AddText(font, hp_font_size, {tx - 1, ty}, outline_col, txt);
@@ -196,7 +198,8 @@ private:
     }
 
     void draw_name(ImDrawList* d, float x0, float y0, float x1, float y1,
-                   const char* name, ImFont* font, float avg_depth)
+                   const char* name, ImFont* font, float avg_depth,
+                   float opacity)
     {
         float name_fs = g_settings.name_font_size;
 
@@ -238,8 +241,8 @@ private:
         nx = floorf(nx);
         ny = floorf(ny);
 
-        ImU32 text_col   = float4_to_col(g_settings.name_color);
-        ImU32 outline_col = float4_to_col(g_settings.name_shadow_color);
+        ImU32 text_col   = apply_opacity(float4_to_col(g_settings.name_color), opacity);
+        ImU32 outline_col = apply_opacity(float4_to_col(g_settings.name_shadow_color), opacity);
 
         if (g_settings.name_shadow)
         {
@@ -252,8 +255,9 @@ private:
         d->AddText(font, name_fs, {nx, ny}, text_col, name);
     }
 
-void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
-                 const PlayerVisuals& p, ImFont* font, float avg_depth)
+    void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
+                     const PlayerVisuals& p, ImFont* font, float avg_depth,
+                     float opacity)
 {
     float raw_factor = g_settings.depth_scale / std::max(avg_depth, 1.0f);
     raw_factor = std::clamp(raw_factor, 0.1f, 3.0f);
@@ -310,9 +314,9 @@ void draw_weapon(ImDrawList* d, float x0, float y0, float x1, float y1,
     float total_width = icon_w + (show_icon && show_text ? spacing : 0) + text_w;
     float draw_x = center_x - total_width * 0.5f;
 
-    ImU32 outline_col = float4_to_col(g_settings.weapon_shadow_color);
-    ImU32 text_col   = float4_to_col(g_settings.weapon_color);
-    ImU32 icon_col   = float4_to_col(g_settings.weapon_icon_color);
+    ImU32 outline_col = apply_opacity(float4_to_col(g_settings.weapon_shadow_color), opacity);
+    ImU32 text_col   = apply_opacity(float4_to_col(g_settings.weapon_color), opacity);
+    ImU32 icon_col   = apply_opacity(float4_to_col(g_settings.weapon_icon_color), opacity);
 
     if (show_icon && icon_tex) {
 

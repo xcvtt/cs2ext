@@ -39,6 +39,12 @@ struct MenuSettings {
 
     bool menu_open = true;
 
+    // ESP Opacity Drop (distance-based)
+    bool  esp_opacity_drop         = true;
+    float esp_opacity_drop_start   = 1500.0f;   // distance at which fade begins
+    float esp_opacity_drop_end     = 3000.0f;  // distance at which fully faded
+    float esp_opacity_drop_min     = 0.1f;     // minimum alpha multiplier at max distance
+
     // Radar
     float radar_size = 275.0f;
     float radar_zoom = 0.35f;
@@ -48,6 +54,7 @@ struct MenuSettings {
     bool radar_circle = true;
     bool radar_rings = false;
     bool radar_names = false;
+    float radar_names_font_size = 11.0f;
     float radar_bg_alpha = 0.0f;
     float radar_enemy_color[4] = {1.00f, 0.30f, 0.30f, 0.90f};
     float radar_team_color[4]  = {0.30f, 0.55f, 1.00f, 0.90f};
@@ -69,17 +76,17 @@ struct MenuSettings {
     float name_color[4] = {0.1f, 1.0f, 0.9f, 0.9f};
     float name_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool name_shadow = true;
-    float name_font_size = 13.0f;
+    float name_font_size = 12.0f;
 
     // Health bar
     bool healthbar_solid_color = false;       // if true: flat color instead of green->red gradient
     float healthbar_color[4] = {0.2f, 0.85f, 1.0f, 0.85f};  // solid color when enabled
 
     // Health text
-    float hp_text_color[4] = {1.0f, 1.0f, 1.0f, 0.86f};
-    float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.70f};
+    float hp_text_color[4] = {1.0f, 1.0f, 1.0f, 0.7f};
+    float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.60f};
     bool hp_text_shadow = true;
-    float hp_font_size = 13.0f;
+    float hp_font_size = 12.0f;
 
     // Weapon ESP
     float weapon_color[4] = {0.8f, 0.8f, 0.8f, 0.85f};
@@ -194,3 +201,14 @@ namespace EspTheme {
     }
 
 } // namespace EspTheme
+
+inline float esp_depth_opacity(float depth) {
+    if (!g_settings.esp_opacity_drop) return 1.0f;
+    float start = g_settings.esp_opacity_drop_start;
+    float end   = g_settings.esp_opacity_drop_end;
+    float mn    = g_settings.esp_opacity_drop_min;
+    if (depth <= start) return 1.0f;
+    if (depth >= end)   return mn;
+    float t = (depth - start) / (end - start);
+    return 1.0f - t * (1.0f - mn);
+}

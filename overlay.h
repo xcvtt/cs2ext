@@ -175,23 +175,29 @@ public:
             spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
 
-        float atlas_size = std::max({ g_settings.name_font_size,
-                                      g_settings.hp_font_size,
-                                      g_settings.weapon_font_size, 14.0f });
-        atlas_size = std::min(atlas_size + 4.0f, 32.0f);
-        g_settings.esp_font_atlas_size = atlas_size;
+        float esp_render_size = std::min({ g_settings.name_font_size,
+                                           g_settings.hp_font_size,
+                                           g_settings.weapon_font_size });
+        esp_render_size = std::max(esp_render_size, 8.0f);
+        g_settings.esp_font_atlas_size = esp_render_size;
 
         const char* esp_path = get_esp_font_path();
         ImFontConfig esp_cfg;
-        esp_cfg.OversampleH = 3;
-        esp_cfg.OversampleV = 2;
+        if (esp_render_size <= 14.0f) {
+            esp_cfg.OversampleH = 8;
+            esp_cfg.OversampleV = 8;
+        } else {
+            esp_cfg.OversampleH = 4;
+            esp_cfg.OversampleV = 4;
+        }
+        esp_cfg.PixelSnapH = true;
 
         esp_font = nullptr;
         if (esp_path)
-            esp_font = io.Fonts->AddFontFromFileTTF(esp_path, atlas_size, &esp_cfg, get_glyph_ranges());
+            esp_font = io.Fonts->AddFontFromFileTTF(esp_path, esp_render_size, &esp_cfg, get_glyph_ranges());
         if (!esp_font) {
             const char* fb = find_system_font("arial.ttf");
-            if (fb) esp_font = io.Fonts->AddFontFromFileTTF(fb, atlas_size, &esp_cfg, get_glyph_ranges());
+            if (fb) esp_font = io.Fonts->AddFontFromFileTTF(fb, esp_render_size, &esp_cfg, get_glyph_ranges());
         }
         if (!esp_font) esp_font = io.Fonts->AddFontDefault();
 

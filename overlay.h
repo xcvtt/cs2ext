@@ -156,44 +156,52 @@ public:
         const char* mf_path = get_menu_font_path();
         float       mf_size = g_settings.menu_font_size;
 
-        ImFontConfig cfg;
-        cfg.OversampleH = 3;
-        cfg.OversampleV = 2;
+        auto make_cfg = [](int oversample_h = 2, int oversample_v = 1) {
+            ImFontConfig cfg;
+            cfg.OversampleH = oversample_h;
+            cfg.OversampleV = oversample_v;
+            cfg.PixelSnapH  = true;
+            return cfg;
+        };
 
+        // ---- Menu fonts ----
         if (mf_path) {
+            auto cfg = make_cfg();
             default_font = io.Fonts->AddFontFromFileTTF(
                 mf_path, mf_size, &cfg, io.Fonts->GetGlyphRangesDefault());
+
+            cfg = make_cfg();
             menu_font = io.Fonts->AddFontFromFileTTF(
-                mf_path, mf_size - 1.0f, &cfg, io.Fonts->GetGlyphRangesDefault());
+                mf_path, mf_size, &cfg, io.Fonts->GetGlyphRangesDefault());
+
+            cfg = make_cfg();
             menu_title_font = io.Fonts->AddFontFromFileTTF(
-                mf_path, mf_size + 4.0f, &cfg, io.Fonts->GetGlyphRangesDefault());
+                mf_path, mf_size, &cfg, io.Fonts->GetGlyphRangesDefault());
         }
         if (!default_font)    default_font    = io.Fonts->AddFontDefault();
         if (!menu_font)       menu_font       = default_font;
         if (!menu_title_font) menu_title_font = default_font;
 
-        ImFontConfig spec_cfg;
-        spec_cfg.OversampleH = 3;
-        spec_cfg.OversampleV = 2;
-        if (mf_path)
-            spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
+        // ---- Spectator font ----
+        if (mf_path) {
+            auto cfg = make_cfg();
+            spec_font = io.Fonts->AddFontFromFileTTF(
+                mf_path, 13.0f, &cfg, get_glyph_ranges());
+        }
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
 
-        // ---- ESP fonts: each baked at its own render size for 1:1 pixel output ----
+        // ---- ESP fonts ----
         const char* esp_path = get_esp_font_path();
-        const char* esp_fb   = find_system_font("arial.ttf");
+        const char* esp_fb   = find_system_font("tahoma.ttf");
 
         auto build_esp_font = [&](float size) -> ImFont* {
-            size = std::max(size, 8.0f);
-            ImFontConfig c;
-            c.OversampleH = (size <= 14.0f) ? 8 : 4;
-            c.OversampleV = (size <= 14.0f) ? 8 : 4;
-            c.PixelSnapH  = true;
+            size = std::roundf(std::max(size, 8.0f));  // round to integer px
+            auto c = make_cfg();
             ImFont* f = nullptr;
             if (esp_path)
                 f = io.Fonts->AddFontFromFileTTF(esp_path, size, &c, get_glyph_ranges());
             if (!f && esp_fb)
-                f = io.Fonts->AddFontFromFileTTF(esp_fb,   size, &c, get_glyph_ranges());
+                f = io.Fonts->AddFontFromFileTTF(esp_fb, size, &c, get_glyph_ranges());
             return f;
         };
 
@@ -202,17 +210,16 @@ public:
         esp_font_weapon = build_esp_font(g_settings.weapon_font_size);
         esp_font_nade   = build_esp_font(g_settings.grenade_text_font_size);
 
-        // esp_font points to name font as general fallback
         esp_font = esp_font_name;
         if (!esp_font)        esp_font        = io.Fonts->AddFontDefault();
         if (!esp_font_hp)     esp_font_hp     = esp_font;
         if (!esp_font_weapon) esp_font_weapon = esp_font;
         if (!esp_font_nade)   esp_font_nade   = esp_font;
 
-        // atlas_size is now just name_font_size (used by any legacy callers)
         g_settings.esp_font_atlas_size = std::max(g_settings.name_font_size, 8.0f);
 
         io.Fonts->Build();
+
         ImGui_ImplDX11_CreateDeviceObjects();
         font_rebuild_needed = false;
     }
@@ -500,30 +507,13 @@ private:
         std::string fd = std::string(font_dir) + "\\Fonts\\";
 
         struct LocalFont { const char* display; const char* path; };
-        static const LocalFont fira_variants[] = {
-            { "Fira Code Light",    "fonts/FiraCode-Light.ttf"    },
-            { "Fira Code Regular",  "fonts/FiraCode-Regular.ttf"  },
-            { "Fira Code Medium",   "fonts/FiraCode-Medium.ttf"   },
-            { "Fira Code SemiBold", "fonts/FiraCode-SemiBold.ttf" },
-            { "Fira Code Bold",     "fonts/FiraCode-Bold.ttf"     },
-        };
-
-        for (const auto& fv : fira_variants)
-            if (file_exists(fv.path)) menu_fonts.push_back({ fv.display, fv.path });
 
         struct SysFont { const char* display; const char* filename; };
         static const SysFont menu_sys[] = {
-            { "Consolas",       "consola.ttf"        },
-            { "Consolas Bold",  "consolab.ttf"       },
-            { "Segoe UI",       "segoeui.ttf"        },
-            { "Segoe UI Bold",  "seguisb.ttf"        },
-            { "Cascadia Code",  "CascadiaCode.ttf"   },
-            { "Cascadia Mono",  "CascadiaMono.ttf"   },
-            { "Lucida Console", "lucon.ttf"          },
-            { "Courier New",    "cour.ttf"           },
             { "Tahoma",         "tahoma.ttf"         },
-            { "Arial",          "arial.ttf"          },
+            { "Tahoma Bold",    "tahomabd.ttf"       },
             { "Verdana",        "verdana.ttf"        },
+            { "Arial",          "arial.ttf"          },
         };
         for (const auto& ms : menu_sys) {
             std::string full = fd + ms.filename;
@@ -531,9 +521,17 @@ private:
         }
         if (menu_fonts.empty()) menu_fonts.push_back({ "Default (ImGui)", "" });
 
-        if (g_settings.menu_font_index < 0 ||
-            g_settings.menu_font_index >= (int)menu_fonts.size())
-            g_settings.menu_font_index = 0;
+        if (g_settings.menu_font_index < 0) {
+            g_settings.esp_font_index = 0;
+            for (int i = 0; i < (int)menu_fonts.size(); i++) {
+                if (menu_fonts[i].display_name == "Tahoma") {
+                    g_settings.menu_font_index = i;
+                    break;
+                }
+            }
+        }
+        if (g_settings.esp_font_index >= (int)available_fonts.size())
+            g_settings.esp_font_index = 0;
 
         // --- ESP fonts ---
         static const SysFont esp_sys[] = {
@@ -557,16 +555,12 @@ private:
             { "Verdana Bold",     "verdanab.ttf"  },
         };
 
-        for (const auto& fv : fira_variants)
-            if (file_exists(fv.path)) available_fonts.push_back({ fv.display, fv.path });
-
         for (const auto& es : esp_sys) {
             std::string full = fd + es.filename;
             if (file_exists(full.c_str())) available_fonts.push_back({ es.display, full });
         }
         if (available_fonts.empty()) available_fonts.push_back({ "Default (ImGui)", "" });
 
-        // Auto-select Tahoma for ESP on first launch; clamp on subsequent launches.
         if (g_settings.esp_font_index < 0) {
             g_settings.esp_font_index = 0;
             for (int i = 0; i < (int)available_fonts.size(); i++) {

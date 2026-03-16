@@ -67,7 +67,7 @@ struct MenuSettings {
 
     // ESP Font — -1 means scan_fonts() will auto-select Tahoma (or first available)
     int esp_font_index = -1;
-    float esp_font_atlas_size = 20.0f;
+    float esp_font_atlas_size = 12.0f;
 
     // Name ESP
     int name_position = 0;
@@ -144,8 +144,8 @@ struct MenuSettings {
     float menu_border_color[4] = {0.0f, 1.0f, 0.65f, 0.3f};
 
     // Menu font
-    int menu_font_index = 1;
-    float menu_font_size = 15.0f;
+    int menu_font_index = -1;
+    float menu_font_size = 14.0f;
 
     // Key binds
     int key_menu = VK_F1;

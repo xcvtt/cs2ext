@@ -644,7 +644,7 @@ private:
         Vec3 aim_world = {
             cam_x + dx * 8000.f,
             cam_y + dy * 8000.f,
-            cam_z + 57.0f + dz * 8000.f,   // +64 eye height offset
+            cam_z + dz * 8000.f,
         };
 
         ImVec2 aim_screen;

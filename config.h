@@ -82,6 +82,24 @@ public:
         write_arr(f, "radar_enemy_color", g_settings.radar_enemy_color, 4);
         write_arr(f, "radar_team_color", g_settings.radar_team_color, 4);
 
+        f << "\n[Grenades]\n";
+        write(f, "grenade_helper_enabled",   g_settings.grenade_helper_enabled);
+        write(f, "grenade_helper_visible",   g_settings.grenade_helper_visible);
+        write(f, "key_grenade_toggle",        g_settings.key_grenade_toggle);
+        write(f, "key_grenade_add",           g_settings.key_grenade_add);
+        write(f, "key_grenade_delete",        g_settings.key_grenade_delete);
+        write(f, "grenade_circle_radius",     g_settings.grenade_circle_radius);
+        write(f, "grenade_circle_thickness",  g_settings.grenade_circle_thickness);
+        write(f, "grenade_text_font_size",    g_settings.grenade_text_font_size);
+        write(f, "grenade_filter_smoke",      g_settings.grenade_filter_smoke);
+        write(f, "grenade_filter_molotov",    g_settings.grenade_filter_molotov);
+        write(f, "grenade_filter_frag",       g_settings.grenade_filter_frag);
+        write(f, "grenade_filter_flash",      g_settings.grenade_filter_flash);
+        write_arr(f, "grenade_circle_color",        g_settings.grenade_circle_color,        4);
+        write_arr(f, "grenade_circle_active_color", g_settings.grenade_circle_active_color, 4);
+        write_arr(f, "grenade_aim_line_color",      g_settings.grenade_aim_line_color,      4);
+        write_arr(f, "grenade_text_color",          g_settings.grenade_text_color,          4);
+
         f << "\n[Colors]\n";
         write_arr(f, "enemy_fill", g_settings.enemy_fill, 4);
         write_arr(f, "enemy_outline", g_settings.enemy_outline, 4);
@@ -177,6 +195,7 @@ public:
         read(kv, "draw_head", g_settings.draw_head);
         read(kv, "chams_style", g_settings.chams_style);
         read(kv, "esp_font_index", g_settings.esp_font_index);
+
         read(kv, "name_position", g_settings.name_position);
         read(kv, "name_offset_x", g_settings.name_offset_x);
         read(kv, "name_offset_y", g_settings.name_offset_y);
@@ -184,10 +203,12 @@ public:
         read_arr(kv, "name_shadow_color", g_settings.name_shadow_color, 4);
         read(kv, "name_shadow", g_settings.name_shadow);
         read(kv, "name_font_size", g_settings.name_font_size);
+
         read_arr(kv, "hp_text_color", g_settings.hp_text_color, 4);
         read_arr(kv, "hp_text_shadow_color", g_settings.hp_text_shadow_color, 4);
         read(kv, "hp_text_shadow", g_settings.hp_text_shadow);
         read(kv, "hp_font_size", g_settings.hp_font_size);
+
         read_arr(kv, "weapon_color", g_settings.weapon_color, 4);
         read_arr(kv, "weapon_shadow_color", g_settings.weapon_shadow_color, 4);
         read_arr(kv, "weapon_icon_color", g_settings.weapon_icon_color, 4);
@@ -196,9 +217,11 @@ public:
         read(kv, "weapon_show_icon", g_settings.weapon_show_icon);
         read(kv, "weapon_show_text", g_settings.weapon_show_text);
         read(kv, "weapon_distance_dropoff", g_settings.weapon_distance_dropoff);
+
         read(kv, "draw_spectators", g_settings.draw_spectators);
         read(kv, "spec_x", g_settings.spec_x);
         read(kv, "spec_y", g_settings.spec_y);
+
         read(kv, "draw_radar", g_settings.draw_radar);
         read(kv, "radar_circle", g_settings.radar_circle);
         read(kv, "radar_rotate", g_settings.radar_rotate);
@@ -212,6 +235,24 @@ public:
         read(kv, "radar_y", g_settings.radar_y);
         read_arr(kv, "radar_enemy_color", g_settings.radar_enemy_color, 4);
         read_arr(kv, "radar_team_color", g_settings.radar_team_color, 4);
+
+        read(kv, "grenade_helper_enabled",   g_settings.grenade_helper_enabled);
+        read(kv, "grenade_helper_visible",   g_settings.grenade_helper_visible);
+        read(kv, "key_grenade_toggle",        g_settings.key_grenade_toggle);
+        read(kv, "key_grenade_add",           g_settings.key_grenade_add);
+        read(kv, "key_grenade_delete",        g_settings.key_grenade_delete);
+        read(kv, "grenade_circle_radius",     g_settings.grenade_circle_radius);
+        read(kv, "grenade_circle_thickness",  g_settings.grenade_circle_thickness);
+        read(kv, "grenade_text_font_size",    g_settings.grenade_text_font_size);
+        read(kv, "grenade_filter_smoke",      g_settings.grenade_filter_smoke);
+        read(kv, "grenade_filter_molotov",    g_settings.grenade_filter_molotov);
+        read(kv, "grenade_filter_frag",       g_settings.grenade_filter_frag);
+        read(kv, "grenade_filter_flash",      g_settings.grenade_filter_flash);
+        read_arr(kv, "grenade_circle_color",        g_settings.grenade_circle_color,        4);
+        read_arr(kv, "grenade_circle_active_color", g_settings.grenade_circle_active_color, 4);
+        read_arr(kv, "grenade_aim_line_color",      g_settings.grenade_aim_line_color,      4);
+        read_arr(kv, "grenade_text_color",          g_settings.grenade_text_color,          4);
+
         read_arr(kv, "enemy_fill", g_settings.enemy_fill, 4);
         read_arr(kv, "enemy_outline", g_settings.enemy_outline, 4);
         read_arr(kv, "enemy_glow", g_settings.enemy_glow, 4);
@@ -230,6 +271,7 @@ public:
         read(kv, "box_padding_x", g_settings.box_padding_x);
         read(kv, "box_padding_y", g_settings.box_padding_y);
         read(kv, "box_corner_pct", g_settings.box_corner_pct);
+
         read(kv, "crosshair_enabled", g_settings.crosshair_enabled);
         read(kv, "crosshair_shape", g_settings.crosshair_shape);
         read(kv, "crosshair_size", g_settings.crosshair_size);
@@ -241,6 +283,7 @@ public:
         read_arr(kv, "crosshair_outline_color", g_settings.crosshair_outline_color, 4);
         read(kv, "crosshair_dot", g_settings.crosshair_dot);
         read(kv, "crosshair_dot_size", g_settings.crosshair_dot_size);
+
         read(kv, "menu_x", g_settings.menu_x);
         read(kv, "menu_y", g_settings.menu_y);
         read(kv, "key_menu", g_settings.key_menu);

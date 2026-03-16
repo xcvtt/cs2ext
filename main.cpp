@@ -21,6 +21,7 @@
 #include "visible_esp.h"
 #include "spectators.h"
 #include "radar.h"
+#include "grenades.h"
 
 static const char* CONFIG_PATH = "cs2esp.ini";
 static volatile bool g_running = true;
@@ -97,6 +98,8 @@ int main() {
 
     if (Config::load(CONFIG_PATH))
         printf("[+] Config loaded\n");
+
+    g_grenades.init("grenades.json");
 
     while (g_settings.memory_backend == -1) {
         printf("\nChoose memory reading backend:\n");
@@ -226,6 +229,19 @@ int main() {
         FrameState state = entity_reader.read_frame(
             g_overlay.width, g_overlay.height);
 
+        float fwd_x = state.view_matrix.m[2][0];
+        float fwd_y = state.view_matrix.m[2][1];
+        float fwd_z = state.view_matrix.m[2][2];
+
+        float view_pitch_deg = -asinf(std::clamp(fwd_z, -1.0f, 1.0f))
+                                * 180.0f / 3.14159265f;
+        float view_yaw_deg   =  atan2f(fwd_y, fwd_x)
+                                * 180.0f / 3.14159265f;
+
+        g_grenades.set_view_matrix(state.view_matrix);
+        g_grenades.update(state.local.x, state.local.y, state.local.z,
+                          view_pitch_deg, view_yaw_deg, state.map_name);
+
         if (state.entity_list) {
             if (++spec_tick >= 15) {
                 spec_tick = 0;
@@ -240,6 +256,11 @@ int main() {
             g_esp.draw_player(draw, state.players[i], state.local.team,
                 g_overlay.width, g_overlay.height, i, state.local.is_scoped);
         }
+
+        g_grenades.render_popups();
+        g_grenades.draw(draw,
+                        state.local.x, state.local.y, state.local.z,
+                        g_overlay.width, g_overlay.height);
 
         g_radar.draw(draw, state.radar_players, EntityList::MAX_PLAYERS,
             state.local.x, state.local.y, state.local.yaw, state.local.team,

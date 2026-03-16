@@ -24,10 +24,10 @@ struct MenuSettings {
     // Theme color is the "base" accent: box will be darkened, text/icons will be lightened
     float esp_theme_color[4] = {0.0f, 0.85f, 1.0f, 0.8f};  // default: cyan
 
-    float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.3f};
+    float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.5f};
     float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.35f};
     float enemy_glow[4]    = {1.00f, 0.20f, 0.20f, 0.10f};
-    float team_fill[4]     = {0.16f, 0.39f, 0.86f, 0.3f};
+    float team_fill[4]     = {0.16f, 0.39f, 0.86f, 0.5f};
     float team_outline[4]  = {0.24f, 0.51f, 1.00f, 0.35f};
     float team_glow[4]     = {0.20f, 0.39f, 1.00f, 0.10f};
 
@@ -84,7 +84,7 @@ struct MenuSettings {
 
     // Health text
     float hp_text_color[4] = {1.0f, 1.0f, 1.0f, 0.7f};
-    float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.60f};
+    float hp_text_shadow_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
     bool hp_text_shadow = true;
     float hp_font_size = 12.0f;
 
@@ -101,6 +101,24 @@ struct MenuSettings {
     // Spectator list position
     float spec_x = -1.0f;
     float spec_y = 30.0f;
+
+    // Grenade Helper
+    bool  grenade_helper_enabled    = false;
+    bool  grenade_helper_visible    = true;
+    int   key_grenade_toggle        = VK_F3;
+    int   key_grenade_add           = VK_F4;
+    int   key_grenade_delete        = VK_DELETE;
+    float grenade_circle_radius     = 10.0f;
+    float grenade_circle_thickness  = 2.0f;
+    float grenade_text_font_size    = 12.0f;
+    bool  grenade_filter_smoke      = true;
+    bool  grenade_filter_molotov    = true;
+    bool  grenade_filter_frag       = true;
+    bool  grenade_filter_flash      = true;
+    float grenade_circle_color[4]        = {0.30f, 0.55f, 1.00f, 0.75f};
+    float grenade_circle_active_color[4] = {0.20f, 1.00f, 0.45f, 0.95f};
+    float grenade_aim_line_color[4]      = {1.00f, 1.00f, 1.00f, 0.65f};
+    float grenade_text_color[4]          = {1.00f, 1.00f, 1.00f, 0.95f};
 
     // Crosshair
     bool crosshair_enabled = false;

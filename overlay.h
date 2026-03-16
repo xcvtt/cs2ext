@@ -31,7 +31,11 @@ public:
     int  width = 0, height = 0;
 
     ImFont* default_font     = nullptr;
-    ImFont* esp_font         = nullptr;
+    ImFont* esp_font        = nullptr;
+    ImFont* esp_font_name   = nullptr;
+    ImFont* esp_font_hp     = nullptr;
+    ImFont* esp_font_weapon = nullptr;
+    ImFont* esp_font_nade   = nullptr;
     ImFont* spec_font        = nullptr;
     ImFont* menu_font        = nullptr;
     ImFont* menu_title_font  = nullptr;
@@ -175,31 +179,38 @@ public:
             spec_font = io.Fonts->AddFontFromFileTTF(mf_path, 13.0f, &spec_cfg, get_glyph_ranges());
         if (!spec_font) spec_font = io.Fonts->AddFontDefault();
 
-        float esp_render_size = std::min({ g_settings.name_font_size,
-                                           g_settings.hp_font_size,
-                                           g_settings.weapon_font_size });
-        esp_render_size = std::max(esp_render_size, 8.0f);
-        g_settings.esp_font_atlas_size = esp_render_size;
-
+        // ---- ESP fonts: each baked at its own render size for 1:1 pixel output ----
         const char* esp_path = get_esp_font_path();
-        ImFontConfig esp_cfg;
-        if (esp_render_size <= 14.0f) {
-            esp_cfg.OversampleH = 8;
-            esp_cfg.OversampleV = 8;
-        } else {
-            esp_cfg.OversampleH = 4;
-            esp_cfg.OversampleV = 4;
-        }
-        esp_cfg.PixelSnapH = true;
+        const char* esp_fb   = find_system_font("arial.ttf");
 
-        esp_font = nullptr;
-        if (esp_path)
-            esp_font = io.Fonts->AddFontFromFileTTF(esp_path, esp_render_size, &esp_cfg, get_glyph_ranges());
-        if (!esp_font) {
-            const char* fb = find_system_font("arial.ttf");
-            if (fb) esp_font = io.Fonts->AddFontFromFileTTF(fb, esp_render_size, &esp_cfg, get_glyph_ranges());
-        }
-        if (!esp_font) esp_font = io.Fonts->AddFontDefault();
+        auto build_esp_font = [&](float size) -> ImFont* {
+            size = std::max(size, 8.0f);
+            ImFontConfig c;
+            c.OversampleH = (size <= 14.0f) ? 8 : 4;
+            c.OversampleV = (size <= 14.0f) ? 8 : 4;
+            c.PixelSnapH  = true;
+            ImFont* f = nullptr;
+            if (esp_path)
+                f = io.Fonts->AddFontFromFileTTF(esp_path, size, &c, get_glyph_ranges());
+            if (!f && esp_fb)
+                f = io.Fonts->AddFontFromFileTTF(esp_fb,   size, &c, get_glyph_ranges());
+            return f;
+        };
+
+        esp_font_name   = build_esp_font(g_settings.name_font_size);
+        esp_font_hp     = build_esp_font(g_settings.hp_font_size);
+        esp_font_weapon = build_esp_font(g_settings.weapon_font_size);
+        esp_font_nade   = build_esp_font(g_settings.grenade_text_font_size);
+
+        // esp_font points to name font as general fallback
+        esp_font = esp_font_name;
+        if (!esp_font)        esp_font        = io.Fonts->AddFontDefault();
+        if (!esp_font_hp)     esp_font_hp     = esp_font;
+        if (!esp_font_weapon) esp_font_weapon = esp_font;
+        if (!esp_font_nade)   esp_font_nade   = esp_font;
+
+        // atlas_size is now just name_font_size (used by any legacy callers)
+        g_settings.esp_font_atlas_size = std::max(g_settings.name_font_size, 8.0f);
 
         io.Fonts->Build();
         ImGui_ImplDX11_CreateDeviceObjects();

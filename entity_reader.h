@@ -115,7 +115,7 @@ struct LocalPlayerState {
     uintptr_t pawn = 0;
     uintptr_t controller = 0;
     int team = 0;
-    float x = 0, y = 0, yaw = 0;
+    float x = 0, y = 0, z = 0, yaw = 0;
     bool is_scoped = false;
 };
 
@@ -125,6 +125,7 @@ struct FrameState {
     PlayerVisuals players[64];
     RadarPlayer radar_players[64];
     uintptr_t entity_list = 0;
+    std::string map_name;
     float map_scale = 5.0f;
 };
 
@@ -170,10 +171,12 @@ public:
                 if (g_memory->read_raw(current_map_ptr, map_name, sizeof(map_name))) {
                     cached_map_scale = get_map_scale(map_name);
                     cached_map_ptr = current_map_ptr;
+                    cached_map_name = map_name;
                 }
             }
         }
         state.map_scale = cached_map_scale; // Assign the cached scale to the frame state
+        state.map_name = cached_map_name;
         // ---------------------------------------------------
 
         // --- 1 RPM: view matrix ---
@@ -203,6 +206,7 @@ public:
                     local_scene + g_offsets.CGameSceneNode.m_vecAbsOrigin);
                 state.local.x = origin.x;
                 state.local.y = origin.y;
+                state.local.z = origin.z;
             }
             state.local.yaw = atan2f(state.view_matrix.m[0][1],
                                      state.view_matrix.m[0][0])
@@ -250,6 +254,7 @@ private:
     CBoneData bone_buf[MAX_BONE];
     uintptr_t cached_map_ptr = 0;
     float cached_map_scale = 5.0f;
+    std::string cached_map_name;
     std::chrono::steady_clock::time_point last_spotted_time[64];
 
     void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,

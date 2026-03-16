@@ -31,6 +31,12 @@ inline void limit_frame(std::chrono::high_resolution_clock::time_point frame_sta
     }
 }
 
+inline ImU32 apply_opacity(ImU32 col, float opacity) {
+    if (opacity >= 1.0f) return col;
+    ImU32 a = (ImU32)(((col >> 24) & 0xFF) * opacity);
+    return (col & 0x00FFFFFF) | (a << 24);
+}
+
 inline const char* vk_name(int vk) {
     switch (vk) {
     case VK_LBUTTON: return "Mouse1";

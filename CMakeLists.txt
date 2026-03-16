@@ -89,4 +89,6 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${CMAKE_SOURCE_DIR}/fonts $<TARGET_FILE_DIR:${PROJECT_NAME}>/fonts
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/icons $<TARGET_FILE_DIR:${PROJECT_NAME}>/icons
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/grenades.json $<TARGET_FILE_DIR:${PROJECT_NAME}>/grenades.json
 )

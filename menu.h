@@ -1,10 +1,10 @@
 #pragma once
 #include <imgui.h>
-#include <cstring>
 #include "settings.h"
 #include "types.h"
 #include "utils.h"
 #include "crosshair.h"
+#include "grenades.h"
 #include "overlay.h"
 #include "weapon_icons.h"
 
@@ -46,6 +46,7 @@ public:
             if (ImGui::BeginTabItem("ESP"))   { render_tab_esp();   ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Radar")) { render_tab_radar(); ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Misc"))  { render_tab_misc();  ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Nades")) { render_tab_nades(); ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Menu"))  { render_tab_menu_style(); ImGui::EndTabItem(); }
             ImGui::EndTabBar();
         }
@@ -59,6 +60,9 @@ private:
     bool bind_waiting_master = false;
     bool bind_waiting_exit = false;
     bool reset_popup_open = false;
+    bool bind_waiting_nade_toggle = false;
+    bool bind_waiting_nade_add    = false;
+    bool bind_waiting_nade_delete = false;
 
     void render_tab_main() {
         ImGui::Spacing();
@@ -476,6 +480,75 @@ private:
             dl->PopClipRect();
             ImGui::Unindent();
         }
+    }
+
+        void render_tab_nades() {
+        ImGui::Spacing();
+        ImGui::Checkbox("Grenade Helper", &g_settings.grenade_helper_enabled);
+
+        if (!g_settings.grenade_helper_enabled) {
+            ImGui::TextColored({0.5f,0.5f,0.5f,1},
+                "Enable to configure and use grenade lineups.");
+            return;
+        }
+
+        ImGui::SameLine(ImGui::GetWindowWidth() - 130);
+        if (g_settings.grenade_helper_visible)
+            ImGui::TextColored({0.3f,1.0f,0.3f,1}, "[VISIBLE]");
+        else
+            ImGui::TextColored({0.6f,0.6f,0.6f,1}, "[HIDDEN]");
+
+        ImGui::Separator();
+
+        // Key binds
+        ImGui::Text("Key Binds");
+        render_key_bind("Toggle Visible",  g_settings.key_grenade_toggle, bind_waiting_nade_toggle);
+        render_key_bind("Add Spot",        g_settings.key_grenade_add,    bind_waiting_nade_add);
+        render_key_bind("Delete Spot",     g_settings.key_grenade_delete, bind_waiting_nade_delete);
+        ImGui::Separator();
+
+        // Filters
+        ImGui::Text("Filters");
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.70f,0.70f,0.70f,1));
+        ImGui::Checkbox("Smoke##nf",   &g_settings.grenade_filter_smoke);
+        ImGui::SameLine();
+        ImGui::PopStyleColor();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.00f,0.47f,0.12f,1));
+        ImGui::Checkbox("Molotov##nf", &g_settings.grenade_filter_molotov);
+        ImGui::SameLine();
+        ImGui::PopStyleColor();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.31f,0.86f,0.31f,1));
+        ImGui::Checkbox("Frag##nf",    &g_settings.grenade_filter_frag);
+        ImGui::SameLine();
+        ImGui::PopStyleColor();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.00f,1.00f,0.39f,1));
+        ImGui::Checkbox("Flash##nf",   &g_settings.grenade_filter_flash);
+        ImGui::PopStyleColor();
+        ImGui::Separator();
+
+        // Appearance
+        ImGui::Text("Appearance");
+        ImGui::SliderFloat("Circle Radius##nc",    &g_settings.grenade_circle_radius,    10.0f, 150.0f, "%.0f");
+        ImGui::SliderFloat("Circle Thickness##nc", &g_settings.grenade_circle_thickness,  0.5f,   4.0f, "%.1f");
+        if (ImGui::SliderFloat("Text Size##nc",        &g_settings.grenade_text_font_size,    8.0f,  20.0f, "%.0f")) {
+            g_overlay.font_rebuild_needed = true;
+        }
+        ImGui::Spacing();
+        ImGui::ColorEdit4("Circle##ncc",        g_settings.grenade_circle_color,
+                          ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        ImGui::ColorEdit4("Active Circle##nac", g_settings.grenade_circle_active_color,
+                          ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        ImGui::ColorEdit4("Aim Line##nal",      g_settings.grenade_aim_line_color,
+                          ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        ImGui::ColorEdit4("Text##ntc",          g_settings.grenade_text_color,
+                          ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar);
+        ImGui::Separator();
+
+        // Spot list for current map
+        ImGui::Text("Spots");
+        ImGui::BeginChild("##nadespots", {0, 200}, true);
+        g_grenades.render_spot_list();
+        ImGui::EndChild();
     }
 
     void render_tab_menu_style() {

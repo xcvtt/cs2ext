@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "types.h"
 #include "settings.h"
+#include "utils.h"
 
 // Styles: 0=Filled, 1=Wireframe, 2=Glow, 3=Skeleton
 enum class ChamsStyle { FILLED, WIREFRAME, GLOW, SKELETON };
@@ -11,12 +12,6 @@ enum class ChamsStyle { FILLED, WIREFRAME, GLOW, SKELETON };
 struct ColorSet {
     ImU32 fill, outline, glow, wire, head_fill;
 };
-
-inline ImU32 apply_opacity(ImU32 col, float opacity) {
-    if (opacity >= 1.0f) return col;
-    ImU32 a = (ImU32)(((col >> 24) & 0xFF) * opacity);
-    return (col & 0x00FFFFFF) | (a << 24);
-}
 
 inline ColorSet get_enemy_colors(float opacity = 1.0f) {
     ImU32 fill    = apply_opacity(float4_to_col(g_settings.enemy_fill),    opacity);
@@ -130,8 +125,8 @@ public:
                 float w = (limb.width_a + (limb.width_b - limb.width_a) * t) * sc;
                 float rx = w * depth_scale / depth;
                 float ry = rx * 0.5f;
-                ImU32 fill_col = shade ? darken(c.fill, 0.7f + 0.3f * t) : c.fill;
-                draw_ellipse_filled(d, pos, rx, ry, angle, fill_col, 14);
+                ImU32 base = shade ? darken(c.fill, 0.7f + 0.3f * t) : c.fill;
+                draw_ellipse_filled(d, pos, rx, ry, angle, slice_color(base, slices + 1), 14);
             }
         }
     }
@@ -214,7 +209,7 @@ public:
                 float w = (limb.width_a + (limb.width_b - limb.width_a) * t) * sc;
                 float rx = (w + expand) * depth_scale / depth;
                 float ry = rx * 0.5f;
-                draw_ellipse_filled(d, pos, rx, ry, angle, c.glow, 12);
+                draw_ellipse_filled(d, pos, rx, ry, angle, slice_color(c.glow, slices + 1), 12);
             }
         }
     }
@@ -329,5 +324,13 @@ public:
             if (g_settings.draw_head) draw_head_skeleton(d, p, c, depth_scale);
             break;
         }
+    }
+
+    static ImU32 slice_color(ImU32 col, int slices) {
+        if (slices <= 1) return col;
+        float a = ((col >> 24) & 0xFF) / 255.0f;
+        float per = 1.0f - powf(1.0f - a, 1.0f / (float)slices);
+        ImU32 pa = (ImU32)(per * 255.0f);
+        return (col & 0x00FFFFFF) | (pa << 24);
     }
 };

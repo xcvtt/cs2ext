@@ -283,9 +283,7 @@ private:
         if (g_settings.draw_name) {
             ImGui::Indent();
             ImGui::RadioButton("Top##np",   &g_settings.name_position, 0); ImGui::SameLine();
-            ImGui::RadioButton("Bot##np",   &g_settings.name_position, 1); ImGui::SameLine();
-            ImGui::RadioButton("Left##np",  &g_settings.name_position, 2); ImGui::SameLine();
-            ImGui::RadioButton("Right##np", &g_settings.name_position, 3);
+            ImGui::RadioButton("Bot##np",   &g_settings.name_position, 1);
             if (ImGui::SliderFloat("Name Font##nf", &g_settings.name_font_size, 8, 24, "%.0f"))
                 g_overlay.font_rebuild_needed = true;
             ImGui::DragFloat("Offset X##no", &g_settings.name_offset_x, 0.5f, -50, 50, "%.1f");

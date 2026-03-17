@@ -11,7 +11,7 @@
 #include "weapon_icons.h"
 
 enum class BoxStyle { CORNERS, FULL, DASHED };
-enum class NamePosition { TOP = 0, BOTTOM, LEFT, RIGHT };
+enum class NamePosition { TOP = 0, BOTTOM };
 
 class BoxRenderer {
 public:
@@ -221,16 +221,6 @@ private:
             case NamePosition::BOTTOM:
                 nx = (x0 + x1) * 0.5f - ts.x * 0.5f;
                 ny = y1 + base_gap;
-                break;
-
-            case NamePosition::LEFT:
-                nx = x0 - ts.x - base_gap * 1.5f;
-                ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
-                break;
-
-            case NamePosition::RIGHT:
-                nx = x1 + base_gap * 1.5f;
-                ny = (y0 + y1) * 0.5f - ts.y * 0.5f;
                 break;
         }
 

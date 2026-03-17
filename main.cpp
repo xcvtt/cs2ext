@@ -103,7 +103,7 @@ int main() {
 
     while (g_settings.memory_backend == -1) {
         printf("\nChoose memory reading backend:\n");
-        printf("  0. User-space (WinAPI)              - simplest, works everywhere\n");
+        printf("  0. User-space (WinAPI)               - simplest, works everywhere\n");
         printf("  1. User-space (indirect syscalls)    - slightly stealthier\n");
         printf("  2. Kernel-space driver (IOCTL)       - requires admin + setup\n");
         printf("\n> ");

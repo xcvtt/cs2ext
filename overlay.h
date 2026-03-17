@@ -107,6 +107,33 @@ public:
         return true;
     }
 
+    bool is_game_window() const {
+        if (!game_hwnd || !IsWindow(game_hwnd))
+            return false;
+
+        wchar_t title[128]{};
+        GetWindowTextW(game_hwnd, title, 128);
+
+        if (wcscmp(title, L"Counter-Strike 2") != 0)
+            return false;
+
+        if (!IsWindowVisible(game_hwnd) || IsIconic(game_hwnd))
+            return false;
+
+        BOOL cloaked = FALSE;
+        if (SUCCEEDED(DwmGetWindowAttribute(
+                game_hwnd, DWMWA_CLOAKED, &cloaked, sizeof(cloaked)))) {
+            if (cloaked)
+                return false;
+                }
+
+        HWND fg = GetForegroundWindow();
+        if (fg != game_hwnd && fg != overlay_hwnd)
+            return false;
+
+        return true;
+    }
+
     // -------------------------------------------------------------------------
     // Called when the user opens/closes the in-game menu.
     // interactive=true  → steals focus + cursor so ImGui widgets are clickable.
@@ -379,7 +406,7 @@ private:
         HWND fg           = GetForegroundWindow();
         bool should_show  = game_visible && (fg == game_hwnd || fg == overlay_hwnd);
 
-        if (!should_show && !g_settings.menu_open) {
+        if (!should_show) {
             if (was_visible) {
                 ShowWindow(overlay_hwnd, SW_HIDE);
                 was_visible = false;
@@ -651,6 +678,12 @@ private:
         if (ImGui_ImplWin32_WndProcHandler(h, m, w, l)) return 0;
         if (m == WM_DESTROY) { PostQuitMessage(0); return 0; }
         return DefWindowProcW(h, m, w, l);
+    }
+
+    float get_font_size_scaled(float font_size) const {
+        static constexpr float base_height = 1080.0f;
+        auto scale_factor = static_cast<float>(height) / base_height;
+        return std::round(font_size * scale_factor);
     }
 };
 

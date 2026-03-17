@@ -207,7 +207,7 @@ int main() {
 
         if (GetAsyncKeyState(g_settings.key_exit) & 1) break;
 
-        if (GetAsyncKeyState(g_settings.key_menu) & 1) g_menu.toggle();
+        if ((GetAsyncKeyState(g_settings.key_menu) & 1) && g_overlay.is_game_window()) g_menu.toggle();
         if (GetAsyncKeyState(g_settings.key_master) & 1)
             g_settings.master_switch = !g_settings.master_switch;
 

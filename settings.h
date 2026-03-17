@@ -1,5 +1,7 @@
 #pragma once
 
+static constexpr float REFERENCE_HEIGHT = 1080.0f;
+
 struct MenuSettings {
     int memory_backend = -1;
 
@@ -37,7 +39,7 @@ struct MenuSettings {
     float glow_expand_outer = 6.0f;
     float glow_expand_inner = 3.0f;
 
-    bool menu_open = true;
+    bool menu_open = false;
 
     // ESP Opacity Drop (distance-based)
     bool  esp_opacity_drop         = true;
@@ -46,10 +48,10 @@ struct MenuSettings {
     float esp_opacity_drop_min     = 0.1f;     // minimum alpha multiplier at max distance
 
     // Radar
-    float radar_size = 275.0f;
+    float radar_size = 330.0f;
     float radar_zoom = 0.35f;
-    float radar_x = 29.0f;
-    float radar_y = 29.0f;
+    float radar_x = 35.0f;
+    float radar_y = 35.0f;
     bool radar_rotate = true;
     bool radar_circle = true;
     bool radar_rings = false;

@@ -387,8 +387,9 @@ private:
         ImGui::Checkbox("Player Names", &g_settings.radar_names);
         if (g_settings.radar_names) {
             ImGui::Indent();
-            ImGui::SliderFloat("Names Font##rnf", &g_settings.radar_names_font_size,
-                               8.0f, 20.0f, "%.0f");
+            if (ImGui::SliderFloat("Names Font##rnf", &g_settings.radar_names_font_size, 8.0f, 20.0f, "%.0f")) {
+                g_overlay.font_rebuild_needed = true;
+            }
             ImGui::Unindent();
         }
         ImGui::Separator();

@@ -169,7 +169,7 @@ public:
                 for (const auto& ap : spot.aim_points)
                     if (aimpoint_passes_filter(ap))
                         draw_aim_point(draw_list, ap,
-                                       local_x, local_y, local_z,
+                                       local_x, local_y, local_z + 64.0f,
                                        sw, sh, font, fs);
         }
     }
@@ -527,7 +527,7 @@ private:
 
     GrenadeSpot* find_nearby_spot(MapSpots& ms,
                                   float px, float py, float pz) {
-        static constexpr float MERGE = 20.0f;
+        static constexpr float MERGE = 5.0f;
         for (auto& s : ms.spots) {
             float dx=px-s.x, dy=py-s.y, dz=pz-s.z;
             if (sqrtf(dx*dx+dy*dy+dz*dz) < MERGE) return &s;

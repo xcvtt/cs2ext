@@ -155,7 +155,7 @@ private:
             static constexpr Preset presets[] = {
                 {"Cyan",       0.00f, 0.85f, 1.00f},
                 {"Lime",       0.20f, 1.00f, 0.30f},
-                {"Orange",     1.00f, 0.55f, 0.10f},
+                {"Blue",       0.25f, 0.6f,  0.8f},
                 {"Magenta",    0.90f, 0.10f, 0.80f},
                 {"White",      0.95f, 0.95f, 0.95f},
                 {"Red",        1.00f, 0.15f, 0.15f},

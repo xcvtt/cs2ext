@@ -24,7 +24,7 @@ struct MenuSettings {
     // ---- ESP Theme ----
     bool esp_use_theme = true;
     // Theme color is the "base" accent: box will be darkened, text/icons will be lightened
-    float esp_theme_color[4] = {0.25f, 0.6f, 0.8f, 1.0f};  // default: cyan
+    float esp_theme_color[4] = {0.235f, 0.68f, 0.93f, 1.0f};  // default: cyan
 
     float enemy_fill[4]    = {0.86f, 0.16f, 0.16f, 0.5f};
     float enemy_outline[4] = {1.00f, 0.24f, 0.24f, 0.35f};

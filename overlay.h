@@ -557,8 +557,8 @@ private:
                 }
             }
         }
-        if (g_settings.esp_font_index >= (int)available_fonts.size())
-            g_settings.esp_font_index = 0;
+        if (g_settings.menu_font_index >= (int)available_fonts.size())
+            g_settings.menu_font_index = 0;
 
         // --- ESP fonts ---
         static const SysFont esp_sys[] = {

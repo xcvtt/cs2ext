@@ -549,7 +549,7 @@ private:
         if (menu_fonts.empty()) menu_fonts.push_back({ "Default (ImGui)", "" });
 
         if (g_settings.menu_font_index < 0) {
-            g_settings.esp_font_index = 0;
+            g_settings.menu_font_index = 0;
             for (int i = 0; i < (int)menu_fonts.size(); i++) {
                 if (menu_fonts[i].display_name == "Tahoma") {
                     g_settings.menu_font_index = i;

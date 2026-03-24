@@ -429,76 +429,84 @@ private:
         }
     }
 
-    // -------------------------------------------------------------------------
-    bool init_dx11() {
-        UINT device_flags = D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-        D3D_FEATURE_LEVEL feature_level;
+bool init_dx11() {
+    UINT device_flags = D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    D3D_FEATURE_LEVEL feature_level;
 
-        if (FAILED(D3D11CreateDevice(
-                nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                device_flags, nullptr, 0, D3D11_SDK_VERSION,
-                &device, &feature_level, &context)))
-            return false;
+    if (FAILED(D3D11CreateDevice(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+            device_flags, nullptr, 0, D3D11_SDK_VERSION,
+            &device, &feature_level, &context)))
+        return false;
 
-        IDXGIDevice*   dxgi_device  = nullptr;
-        IDXGIAdapter*  dxgi_adapter = nullptr;
-        IDXGIFactory2* dxgi_factory = nullptr;
+    IDXGIDevice*   dxgi_device  = nullptr;
+    IDXGIAdapter*  dxgi_adapter = nullptr;
+    IDXGIFactory2* dxgi_factory = nullptr;
 
-        device->QueryInterface(IID_PPV_ARGS(&dxgi_device));
-        dxgi_device->GetAdapter(&dxgi_adapter);
-        dxgi_adapter->GetParent(IID_PPV_ARGS(&dxgi_factory));
+    // --- acquire DXGI objects, releasing all on any failure ---
+    if (FAILED(device->QueryInterface(IID_PPV_ARGS(&dxgi_device))))
+        return false;
 
-        DXGI_SWAP_CHAIN_DESC1 sd{};
-        sd.Width           = width;
-        sd.Height          = height;
-        sd.Format          = DXGI_FORMAT_B8G8R8A8_UNORM;
-        sd.SampleDesc.Count= 1;
-        sd.BufferUsage     = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.BufferCount     = 2;
-        sd.SwapEffect      = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-        sd.AlphaMode       = DXGI_ALPHA_MODE_PREMULTIPLIED;
-        sd.Flags           = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+    HRESULT hr = dxgi_device->GetAdapter(&dxgi_adapter);
+    if (FAILED(hr)) { dxgi_device->Release(); return false; }
 
-        IDXGISwapChain1* swap_chain1 = nullptr;
-        HRESULT hr = dxgi_factory->CreateSwapChainForComposition(
-            device, &sd, nullptr, &swap_chain1);
+    hr = dxgi_adapter->GetParent(IID_PPV_ARGS(&dxgi_factory));
+    dxgi_adapter->Release();
+    if (FAILED(hr)) { dxgi_device->Release(); return false; }
 
-        dxgi_factory->Release();
-        dxgi_adapter->Release();
+    DXGI_SWAP_CHAIN_DESC1 sd{};
+    sd.Width            = width;
+    sd.Height           = height;
+    sd.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+    sd.SampleDesc.Count = 1;
+    sd.BufferUsage      = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.BufferCount      = 2;
+    sd.SwapEffect       = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    sd.AlphaMode        = DXGI_ALPHA_MODE_PREMULTIPLIED;
+    sd.Flags            = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+
+    IDXGISwapChain1* swap_chain1 = nullptr;
+    hr = dxgi_factory->CreateSwapChainForComposition(device, &sd, nullptr, &swap_chain1);
+    dxgi_factory->Release();
+
+    if (FAILED(hr)) { dxgi_device->Release(); return false; }
+
+    hr = swap_chain1->QueryInterface(IID_PPV_ARGS(&swap_chain));
+    swap_chain1->Release();
+    if (FAILED(hr)) { dxgi_device->Release(); return false; }
+
+    // --- bind swap chain to overlay via DComp BEFORE touching frame latency ---
+    if (!bind_swap_chain_to_window(swap_chain, dxgi_device)) {
         dxgi_device->Release();
-
-        if (FAILED(hr)) return false;
-
-        hr = swap_chain1->QueryInterface(IID_PPV_ARGS(&swap_chain));
-        swap_chain1->Release();
-        if (FAILED(hr)) return false;
-
-        swap_chain->SetMaximumFrameLatency(1);
-        frame_latency_waitable_object = swap_chain->GetFrameLatencyWaitableObject();
-
-        if (!bind_swap_chain_to_window(swap_chain)) return false;
-
-        ID3D11Texture2D* back_buffer = nullptr;
-        swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
-        device->CreateRenderTargetView(back_buffer, nullptr, &rtv);
-        back_buffer->Release();
-
-        D3D11_VIEWPORT vp{};
-        vp.Width    = static_cast<float>(width);
-        vp.Height   = static_cast<float>(height);
-        vp.MaxDepth = 1.0f;
-        context->RSSetViewports(1, &vp);
-
-        return true;
+        return false;
     }
+    dxgi_device->Release();
+
+    // SetMaximumFrameLatency and GetFrameLatencyWaitableObject must come
+    // AFTER DCompositionDevice::Commit() so DWM has already registered
+    // the swap chain in the visual tree.
+    swap_chain->SetMaximumFrameLatency(1);
+    frame_latency_waitable_object = swap_chain->GetFrameLatencyWaitableObject();
+
+    // --- RTV and viewport ---
+    ID3D11Texture2D* back_buffer = nullptr;
+    swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
+    device->CreateRenderTargetView(back_buffer, nullptr, &rtv);
+    back_buffer->Release();
+
+    D3D11_VIEWPORT vp{};
+    vp.Width    = static_cast<float>(width);
+    vp.Height   = static_cast<float>(height);
+    vp.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &vp);
+
+    return true;
+}
 
     // -------------------------------------------------------------------------
-    bool bind_swap_chain_to_window(IDXGISwapChain1* sc) {
-        IDXGIDevice* dxgi_dev = nullptr;
-        if (FAILED(device->QueryInterface(IID_PPV_ARGS(&dxgi_dev)))) return false;
-
+    bool bind_swap_chain_to_window(IDXGISwapChain1* sc, IDXGIDevice* dxgi_dev) {
+        // dxgi_dev is borrowed — caller owns its lifetime, don't Release here
         HRESULT hr = DCompositionCreateDevice(dxgi_dev, IID_PPV_ARGS(&dcomp_device));
-        dxgi_dev->Release();
         if (FAILED(hr)) return false;
 
         if (FAILED(dcomp_device->CreateTargetForHwnd(overlay_hwnd, TRUE, &dcomp_target))) return false;
@@ -557,7 +565,7 @@ private:
                 }
             }
         }
-        if (g_settings.menu_font_index >= (int)available_fonts.size())
+        if (g_settings.menu_font_index >= (int)menu_fonts.size())
             g_settings.menu_font_index = 0;
 
         // --- ESP fonts ---
@@ -678,12 +686,6 @@ private:
         if (ImGui_ImplWin32_WndProcHandler(h, m, w, l)) return 0;
         if (m == WM_DESTROY) { PostQuitMessage(0); return 0; }
         return DefWindowProcW(h, m, w, l);
-    }
-
-    float get_font_size_scaled(float font_size) const {
-        static constexpr float base_height = 1080.0f;
-        auto scale_factor = static_cast<float>(height) / base_height;
-        return std::round(font_size * scale_factor);
     }
 };
 

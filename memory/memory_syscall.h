@@ -3,6 +3,7 @@
 #include <TlHelp32.h>
 #include <cstdio>
 
+#include "imemory.h"
 #include "memory_utils.h"
 
 // ─── NT Structures ───
@@ -348,8 +349,13 @@ public:
         }
 
         process_ = handle;
-        client_base_ = get_module_base(pid_, L"client.dll");
-        return client_base_ != 0;
+        m_modules.client = get_module_base(pid_, L"client.dll", &m_modules.client_size);
+        m_modules.engine2 = get_module_base(pid_, L"engine2.dll", &m_modules.engine2_size);
+        m_modules.schemasystem = get_module_base(pid_, L"schemasystem.dll", &m_modules.schemasystem_size);
+        m_modules.tier0 = get_module_base(pid_, L"tier0.dll", &m_modules.tier0_size);
+        m_modules.vphysics2 = get_module_base(pid_, L"vphysics2.dll", &m_modules.vphysics2_size);
+
+        return m_modules.client != 0;
     }
 
     void close() override {
@@ -360,7 +366,7 @@ public:
             process_ = nullptr;
         }
         pid_ = 0;
-        client_base_ = 0;
+        m_modules = {};
     }
 
     template <typename T>
@@ -384,13 +390,12 @@ public:
         return s == 0 && br == size;
     }
 
-    uintptr_t get_client_base() const override { return client_base_; }
+    uintptr_t get_client_base() const override { return m_modules.client; }
     DWORD get_pid() const override { return pid_; }
 
 private:
     HANDLE    process_     = nullptr;
     DWORD     pid_         = 0;
-    uintptr_t client_base_ = 0;
     bool      initialized_ = false;
 
     SyscallResolver resolver_;
@@ -407,7 +412,7 @@ private:
         return invoker_.is_ready();
     }
 
-    static uintptr_t get_module_base(DWORD p, const wchar_t* mod) {
+    static uintptr_t get_module_base(DWORD p, const wchar_t* mod, size_t* size) {
         uintptr_t base = 0;
         HANDLE snap = CreateToolhelp32Snapshot(
             TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, p);
@@ -418,6 +423,7 @@ private:
             do {
                 if (!_wcsicmp(me.szModule, mod)) {
                     base = (uintptr_t)me.modBaseAddr;
+                    *size = me.modBaseSize;
                     break;
                 }
             } while (Module32NextW(snap, &me));

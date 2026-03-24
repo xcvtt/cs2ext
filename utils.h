@@ -83,12 +83,22 @@ inline const char* vk_name(int vk) {
 }
 
 inline int scan_any_key() {
-    for (int k = VK_F1; k <= VK_F12; k++)
-        if (GetAsyncKeyState(k) & 1) return k;
-    for (int k : {VK_INSERT, VK_DELETE, VK_HOME, VK_END, VK_PRIOR, VK_NEXT})
-        if (GetAsyncKeyState(k) & 1) return k;
-    for (int k : {VK_XBUTTON1, VK_XBUTTON2, VK_MBUTTON})
-        if (GetAsyncKeyState(k) & 1) return k;
+    for (int k = 1; k < 256; ++k)
+    {
+        if (k == VK_LBUTTON || k == VK_RBUTTON || k == VK_MBUTTON ||
+            k == VK_XBUTTON1 || k == VK_XBUTTON2 ||
+            k == VK_SHIFT || k == VK_CONTROL || k == VK_MENU)
+        {
+            if (GetAsyncKeyState(k) & 1)
+                return k;
+            continue;
+        }
+
+        if (GetAsyncKeyState(k) & 1)
+            return k;
+    }
+
+
     if (GetAsyncKeyState(VK_ESCAPE) & 1) return -1;
     return 0;
 }

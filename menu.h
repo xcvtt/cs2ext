@@ -45,6 +45,7 @@ public:
             if (ImGui::BeginTabItem("Main"))  { render_tab_main();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("ESP"))   { render_tab_esp();   ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Radar")) { render_tab_radar(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("Aim"))  { render_tab_aim();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Misc"))  { render_tab_misc();  ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Nades")) { render_tab_nades(); ImGui::EndTabItem(); }
             if (ImGui::BeginTabItem("Menu"))  { render_tab_menu_style(); ImGui::EndTabItem(); }
@@ -63,6 +64,7 @@ private:
     bool bind_waiting_nade_toggle = false;
     bool bind_waiting_nade_add    = false;
     bool bind_waiting_nade_delete = false;
+    bool bind_waiting_aimbot = false;
 
     void render_tab_main() {
         ImGui::Spacing();
@@ -403,6 +405,24 @@ private:
                           ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs);
         ImGui::ColorEdit4("Team##rt", g_settings.radar_team_color,
                           ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs);
+    }
+
+    void render_tab_aim() {
+        ImGui::Spacing();
+        ImGui::Checkbox("Enable aimbot", &g_settings.aimbot_enabled);
+
+        if (!g_settings.aimbot_enabled) {
+            ImGui::TextColored({1.0f,0.0f,0.0f,1}, "Aimbot can get you VACLIVE banned.");
+            return;
+        }
+
+        render_key_bind("Key",  g_settings.key_aimbot, bind_waiting_aimbot);
+
+        ImGui::Indent();
+        ImGui::SliderInt("Fov", &g_settings.aimbot_fov, 1, 360);
+        ImGui::Unindent();
+
+        ImGui::Separator();
     }
 
     void render_tab_misc() {

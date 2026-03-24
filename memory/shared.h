@@ -32,7 +32,9 @@ typedef struct _READ_MEMORY_REQUEST {
 typedef struct _MODULE_BASE_REQUEST {
     unsigned long    target_pid;
     wchar_t          module_name[256];
-    unsigned __int64 base_address;
+    unsigned __int64 base_address;    // OUTPUT: filled by driver
+    unsigned long    module_size;     // OUTPUT: filled by driver
+    unsigned long    padding;         // keep 8-byte alignment
 } MODULE_BASE_REQUEST, *PMODULE_BASE_REQUEST;
 
 typedef struct _PING_RESPONSE {

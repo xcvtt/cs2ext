@@ -155,6 +155,11 @@ public:
         write(f, "menu_font_index", g_settings.menu_font_index);
         write(f, "menu_font_size", g_settings.menu_font_size);
 
+        f << "\n[Aimbot]\n";
+        write(f, "aimbot_enabled", g_settings.aimbot_enabled);
+        write(f, "aimbot_fov", g_settings.aimbot_fov);
+        write(f, "key_aimbot", g_settings.key_aimbot);
+
         f.close();
         return true;
     }
@@ -294,6 +299,10 @@ public:
         read_arr(kv, "menu_border_color", g_settings.menu_border_color, 4);
         read(kv, "menu_font_index", g_settings.menu_font_index);
         read(kv, "menu_font_size", g_settings.menu_font_size);
+
+        read(kv, "aimbot_enabled", g_settings.aimbot_enabled);
+        read(kv, "aimbot_fov", g_settings.aimbot_fov);
+        read(kv, "key_aimbot", g_settings.key_aimbot);
 
         return true;
     }

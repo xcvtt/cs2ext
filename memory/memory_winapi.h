@@ -13,10 +13,11 @@ public:
     MemoryWinApi& operator=(const MemoryWinApi&) = delete;
 
     MemoryWinApi(MemoryWinApi&& other) noexcept
-        : process(other.process), pid(other.pid), client_base(other.client_base) {
+        : process(other.process), pid(other.pid) {
+        this->m_modules = other.m_modules;
         other.process = nullptr;
         other.pid = 0;
-        other.client_base = 0;
+        other.m_modules = {};
     }
 
     MemoryWinApi& operator=(MemoryWinApi&& other) noexcept {
@@ -24,10 +25,10 @@ public:
             close();
             process = other.process;
             pid = other.pid;
-            client_base = other.client_base;
+            m_modules = other.m_modules;
             other.process = nullptr;
             other.pid = 0;
-            other.client_base = 0;
+            other.m_modules = {};
         }
         return *this;
     }
@@ -39,8 +40,13 @@ public:
         process = OpenProcess(PROCESS_VM_READ, FALSE, pid);
         if (!process) return false;
 
-        client_base = get_module_base(pid, L"client.dll");
-        return client_base != 0;
+        m_modules.client = get_module_base(pid, L"client.dll", &m_modules.client_size);
+        m_modules.engine2 = get_module_base(pid, L"engine2.dll", &m_modules.engine2_size);
+        m_modules.schemasystem = get_module_base(pid, L"schemasystem.dll", &m_modules.schemasystem_size);
+        m_modules.tier0 = get_module_base(pid, L"tier0.dll", &m_modules.tier0_size);
+        m_modules.vphysics2 = get_module_base(pid, L"vphysics2.dll", &m_modules.vphysics2_size);
+
+        return m_modules.client != 0;
     }
 
     void close() {
@@ -49,7 +55,7 @@ public:
             process = nullptr;
         }
         pid = 0;
-        client_base = 0;
+        m_modules = {};
     }
 
     template <typename T>
@@ -69,13 +75,12 @@ public:
         return GetExitCodeProcess(process, &code) && code == STILL_ACTIVE;
     }
 
-    uintptr_t get_client_base() const { return client_base; }
+    uintptr_t get_client_base() const { return m_modules.client; }
     DWORD get_pid() const { return pid; }
 
 private:
     HANDLE process = nullptr;
     DWORD pid = 0;
-    uintptr_t client_base = 0;
 
     static DWORD find_process(const wchar_t* name) {
         DWORD result = 0;
@@ -97,7 +102,7 @@ private:
         return result;
     }
 
-    static uintptr_t get_module_base(DWORD pid, const wchar_t* module_name) {
+    static uintptr_t get_module_base(DWORD pid, const wchar_t* module_name, size_t* size) {
         uintptr_t base = 0;
         HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
         if (snap == INVALID_HANDLE_VALUE) return 0;
@@ -109,6 +114,7 @@ private:
             do {
                 if (!_wcsicmp(me.szModule, module_name)) {
                     base = (uintptr_t)me.modBaseAddr;
+                    *size = me.modBaseSize;
                     break;
                 }
             } while (Module32NextW(snap, &me));

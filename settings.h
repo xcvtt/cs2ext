@@ -122,6 +122,11 @@ struct MenuSettings {
     float grenade_aim_line_color[4]      = {1.00f, 1.00f, 1.00f, 0.65f};
     float grenade_text_color[4]          = {1.00f, 1.00f, 1.00f, 0.95f};
 
+    // Aimbot
+    bool aimbot_enabled = false;
+    int key_aimbot = 'X';
+    int aimbot_fov = 5;
+
     // Crosshair
     bool crosshair_enabled = false;
     int crosshair_shape = 0;

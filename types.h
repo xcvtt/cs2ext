@@ -83,6 +83,7 @@ struct PlayerVisuals {
     char weapon[64]{};
     uint16_t weapon_def_index = 0;
     Vec3 origin{};
+    Vec3 head_world{};
 };
 
 struct RadarPlayer {

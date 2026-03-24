@@ -283,8 +283,6 @@ private:
             snprintf(out_name, max_len, "Weapon %d", def_index);
     }
 
-    // Signature changed: takes controller ptr directly (extracted from page_buf
-    // by the caller) instead of re-reading it from first_page.
     void read_player(FrameState& state, uintptr_t controller, int i,
                      int screen_w, int screen_h) {
         char name[128]{};
@@ -329,6 +327,7 @@ private:
         player.team = team;
         player.health = health;
         player.origin = origin;
+        player.head_world = bone_buf[6].pos;  // bone 6 = head
         memcpy(player.name, name, 128);
 
         read_weapon(pawn, player.weapon, sizeof(player.weapon),

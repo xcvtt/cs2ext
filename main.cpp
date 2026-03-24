@@ -3,6 +3,7 @@
 #include <chrono>
 #include <imgui.h>
 
+#include "aimbot.h"
 #include "types.h"
 #include "settings.h"
 #include "utils.h"
@@ -22,6 +23,7 @@
 #include "spectators.h"
 #include "radar.h"
 #include "grenades.h"
+#include "input/input.h"
 
 static const char* CONFIG_PATH = "cs2esp.ini";
 static volatile bool g_running = true;
@@ -34,6 +36,7 @@ static void save_and_exit() {
 
 // Cleanup that ALWAYS runs, no matter how we exit
 static void cleanup_on_exit() {
+    stop_aimbot_thread();
     // Close memory backend (triggers driver unload if driver backend)
     if (g_memory) {
         g_memory->close();
@@ -48,8 +51,10 @@ static BOOL WINAPI console_handler(DWORD event) {
         event == CTRL_BREAK_EVENT || event == CTRL_LOGOFF_EVENT ||
         event == CTRL_SHUTDOWN_EVENT)
     {
-        cleanup_on_exit();
+        g_aimbot_running.store(false, std::memory_order_relaxed);
         g_running = false;
+
+        cleanup_on_exit();
         return TRUE;
     }
     return FALSE;
@@ -91,6 +96,7 @@ int main() {
     SetConsoleCtrlHandler(console_handler, TRUE);
     SetUnhandledExceptionFilter(crash_handler);
     std::atexit([]() {
+        stop_aimbot_thread();
         if (g_driver_backend_active) {
             DriverManager::full_cleanup();
         }
@@ -189,6 +195,18 @@ int main() {
         return 1;
     }
 
+    if (!g_input.initialize())
+    {
+        printf("[-] Input init failed\n");
+        cleanup_on_exit();
+        CoUninitialize();
+        return 1;
+    }
+
+    if (g_settings.aimbot_enabled) {
+        start_aimbot_thread();
+    }
+
     g_weapon_icons.init(g_overlay.get_device());
 
     printf("[+] %s = menu | %s = master toggle | %s = exit\n",
@@ -199,6 +217,8 @@ int main() {
     EntityReader entity_reader;
     bool prev_menu = g_settings.menu_open;
     int spec_tick = 0;
+    bool was_aimbot_enabled = false;
+    std::string last_map_name;
 
     g_overlay.set_interactive(g_settings.menu_open);
 
@@ -216,6 +236,11 @@ int main() {
             prev_menu = g_settings.menu_open;
         }
 
+        bool want_aimbot = g_settings.aimbot_enabled && g_settings.master_switch;
+        if (want_aimbot && !was_aimbot_enabled) start_aimbot_thread();
+        else if (!want_aimbot && was_aimbot_enabled) stop_aimbot_thread();
+        was_aimbot_enabled = want_aimbot;
+
         if (!g_overlay.begin_frame()) break;
         g_menu.render();
 
@@ -228,6 +253,45 @@ int main() {
 
         FrameState state = entity_reader.read_frame(
             g_overlay.width, g_overlay.height);
+
+        // ─── Feed aimbot thread ────────────────────────────────
+        if (g_settings.aimbot_enabled)
+        {
+            AimbotFrame af{};
+            af.view_matrix = state.view_matrix;
+            af.local_x     = state.local.x;
+            af.local_y     = state.local.y;
+            af.local_z     = state.local.z;
+            af.local_team  = state.local.team;
+            af.local_health = 0; // read from snap if needed
+            af.local_pawn  = state.local.pawn;
+            af.screen_w    = g_overlay.width;
+            af.screen_h    = g_overlay.height;
+
+            for (int i = 1; i < EntityList::MAX_PLAYERS; i++)
+            {
+                const auto& p = state.players[i];
+                af.targets[i].valid    = p.valid;
+                af.targets[i].team     = p.team;
+                af.targets[i].health   = p.health;
+                // Head = bone 6, already projected but we need world pos
+                // Bone data is in screens[], but we need the 3D position
+                // So store the head bone world position from bone_buf
+                af.targets[i].head_pos = p.head_world; // see note below
+            }
+
+            g_aimbot_data.publish(af);
+        }
+
+        if (!state.map_name.empty() && state.map_name != "<empty>" && state.map_name != last_map_name) {
+            printf( "map change: %s -> %s\n", last_map_name.data(), state.map_name.data());
+            last_map_name = state.map_name;
+            g_bvh.clear();
+            printf( "parsing bvh for %s\n", last_map_name.data());
+            g_bvh.parse( );
+            printf( "bvh parse.\n" );
+        }
+
 
         float fwd_x = state.view_matrix.m[2][0];
         float fwd_y = state.view_matrix.m[2][1];

@@ -77,10 +77,30 @@ public:
             return false;
         }
 
-        // Step 5: Get client.dll base via driver
-        client_base = query_module_base(L"client.dll");
-        if (!client_base) {
+        // Step 5: Get modules base adr via driver
+        m_modules.client = query_module_base(L"client.dll", &m_modules.client_size);
+        if (!m_modules.client) {
             printf("[-] Failed to find client.dll in target process.\n");
+            return false;
+        }
+        m_modules.engine2 = query_module_base(L"engine2.dll", &m_modules.engine2_size);
+        if (!m_modules.engine2) {
+            printf("[-] Failed to find engine2.dll in target process.\n");
+            return false;
+        }
+        m_modules.schemasystem = query_module_base(L"schemasystem.dll", &m_modules.schemasystem_size);
+        if (!m_modules.schemasystem) {
+            printf("[-] Failed to find schemasystem.dll in target process.\n");
+            return false;
+        }
+        m_modules.tier0 = query_module_base(L"tier0.dll", &m_modules.tier0_size);
+        if (!m_modules.tier0) {
+            printf("[-] Failed to find tier0.dll in target process.\n");
+            return false;
+        }
+        m_modules.vphysics2 = query_module_base(L"vphysics2.dll", &m_modules.vphysics2_size);
+        if (!m_modules.vphysics2) {
+            printf("[-] Failed to find vphysics2.dll in target process.\n");
             return false;
         }
 
@@ -99,7 +119,7 @@ public:
         }
 
         pid = 0;
-        client_base = 0;
+        m_modules = {};
     }
 
     bool read_raw(uintptr_t address, void* buffer, size_t size) const override {
@@ -143,26 +163,22 @@ public:
         return true;
     }
 
-    uintptr_t get_client_base() const override { return client_base; }
-
-    uintptr_t get_module_base(const wchar_t* name) const {
-        return query_module_base(name);
-    }
+    uintptr_t get_client_base() const override { return m_modules.client; }
 
     DWORD get_pid() const override { return pid; }
 
 private:
     HANDLE    h_driver = INVALID_HANDLE_VALUE;
     DWORD     pid = 0;
-    uintptr_t client_base = 0;
     bool      driver_loaded_by_us = false;
 
-    uintptr_t query_module_base(const wchar_t* module_name) const {
+    uintptr_t query_module_base(const wchar_t* module_name, size_t* out_size) const {
         if (h_driver == INVALID_HANDLE_VALUE || !pid) return 0;
 
         MODULE_BASE_REQUEST request{};
-        request.target_pid = pid;
+        request.target_pid   = pid;
         request.base_address = 0;
+        request.module_size  = 0;
         wcsncpy_s(request.module_name, 256, module_name, _TRUNCATE);
 
         MODULE_BASE_REQUEST response{};
@@ -178,6 +194,9 @@ private:
         );
 
         if (ok && returned == sizeof(MODULE_BASE_REQUEST)) {
+            if (out_size) {
+                *out_size = static_cast<size_t>(response.module_size);
+            }
             return static_cast<uintptr_t>(response.base_address);
         }
 

@@ -203,7 +203,7 @@ int main() {
         return 1;
     }
 
-    if (g_settings.aimbot_enabled) {
+    if (g_settings.aimbot_enabled || g_settings.triggerbot_enabled) {
         start_aimbot_thread();
     }
 
@@ -236,9 +236,13 @@ int main() {
             prev_menu = g_settings.menu_open;
         }
 
-        bool want_aimbot = g_settings.aimbot_enabled && g_settings.master_switch;
-        if (want_aimbot && !was_aimbot_enabled) start_aimbot_thread();
-        else if (!want_aimbot && was_aimbot_enabled) stop_aimbot_thread();
+        bool want_aimbot = (g_settings.aimbot_enabled || g_settings.triggerbot_enabled) && g_settings.master_switch;
+        if (want_aimbot && !was_aimbot_enabled) {
+            start_aimbot_thread();
+        }
+        else if (!want_aimbot && was_aimbot_enabled) {
+            stop_aimbot_thread();
+        }
         was_aimbot_enabled = want_aimbot;
 
         if (!g_overlay.begin_frame()) break;
@@ -254,8 +258,7 @@ int main() {
         FrameState state = entity_reader.read_frame(
             g_overlay.width, g_overlay.height);
 
-        // ─── Feed aimbot thread ────────────────────────────────
-        if (g_settings.aimbot_enabled)
+        if (g_settings.aimbot_enabled || g_settings.triggerbot_enabled)
         {
             AimbotFrame af{};
             af.view_matrix = state.view_matrix;
@@ -263,35 +266,49 @@ int main() {
             af.local_y     = state.local.y;
             af.local_z     = state.local.z;
             af.local_team  = state.local.team;
-            af.local_health = 0; // read from snap if needed
             af.local_pawn  = state.local.pawn;
             af.screen_w    = g_overlay.width;
             af.screen_h    = g_overlay.height;
 
+            if (state.local.camera.valid)
+            {
+                af.eye_origin   = state.local.camera.origin;
+                af.view_angles  = state.local.camera.angles;
+                af.camera_fov   = state.local.camera.fov;
+                af.camera_valid = true;
+            }
+            else
+            {
+                af.eye_origin  = { state.local.x,
+                                   state.local.y,
+                                   state.local.z + 64.0f };
+                af.camera_fov  = 90.0f;
+                af.camera_valid = false;
+            }
+
             for (int i = 1; i < EntityList::MAX_PLAYERS; i++)
             {
                 const auto& p = state.players[i];
-                af.targets[i].valid    = p.valid;
-                af.targets[i].team     = p.team;
-                af.targets[i].health   = p.health;
-                // Head = bone 6, already projected but we need world pos
-                // Bone data is in screens[], but we need the 3D position
-                // So store the head bone world position from bone_buf
-                af.targets[i].head_pos = p.head_world; // see note below
+                af.targets[i].valid      = p.valid;
+                af.targets[i].team       = p.team;
+                af.targets[i].health     = p.health;
+                af.targets[i].head_pos   = p.head_world;
+                af.targets[i].neck_pos   = p.neck_world;
+                af.targets[i].chest_pos  = p.chest_world;
+                af.targets[i].pelvis_pos = p.pelvis_world;
             }
 
             g_aimbot_data.publish(af);
         }
 
-        if (!state.map_name.empty() && state.map_name != "<empty>" && state.map_name != last_map_name) {
-            printf( "map change: %s -> %s\n", last_map_name.data(), state.map_name.data());
+        if (state.local.observer_pawn != 0 && state.local.pawn != 0 && !state.map_name.empty() && state.map_name != "<empty>" && state.map_name != last_map_name) {
+            printf( "[info] map change: %s -> %s\n", last_map_name.data(), state.map_name.data());
             last_map_name = state.map_name;
             g_bvh.clear();
-            printf( "parsing bvh for %s\n", last_map_name.data());
-            g_bvh.parse( );
-            printf( "bvh parse.\n" );
+            printf( "[info] parsing bvh for %s\n", last_map_name.data());
+            g_bvh.parse();
+            printf( "[ok] bvh parsed\n" );
         }
-
 
         float fwd_x = state.view_matrix.m[2][0];
         float fwd_y = state.view_matrix.m[2][1];

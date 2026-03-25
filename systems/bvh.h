@@ -558,7 +558,7 @@ inline void bvh::parse( )
 	const auto vphys2_world_global = g_memory->read<std::uintptr_t>( g_memory->resolve_rip( trace_against_entities_call - 0x1a ) );
 	const auto vphys2_world = g_memory->read<std::uintptr_t>( vphys2_world_global );
 
-	if ( !vphys2_world )
+	if (!vphys2_world )
 	{
 		return;
 	}

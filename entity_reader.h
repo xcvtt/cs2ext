@@ -111,12 +111,21 @@ inline const WeaponInfo* lookup_weapon(uint16_t def_index) {
     return nullptr;
 }
 
+struct CameraState {
+    Vec3  origin{};       // exact eye position
+    Vec3  angles{};       // exact view angles (pitch, yaw, roll)
+    float fov = 90.0f;    // exact rendered FOV
+    bool  valid = false;
+};
+
 struct LocalPlayerState {
     uintptr_t pawn = 0;
+    uintptr_t observer_pawn = 0;
     uintptr_t controller = 0;
     int team = 0;
     float x = 0, y = 0, z = 0, yaw = 0;
     bool is_scoped = false;
+    CameraState camera;
 };
 
 struct FrameState {
@@ -190,6 +199,8 @@ public:
         state.local.controller = g_memory->read<uintptr_t>(
             g_memory->get_client_base() + g_offsets.client.dwLocalPlayerController);
 
+        state.local.observer_pawn = g_memory->read<uintptr_t>(state.local.controller + g_offsets.CCSPlayerController.m_hObserverPawn);
+
         if (state.local.pawn) {
             // --- 1 RPM: bulk-read local pawn snapshot ---
             PawnSnapshot local_snap{};
@@ -212,6 +223,8 @@ public:
                                      state.view_matrix.m[0][0])
                               * 180.0f / 3.14159265f - 90.0f;
         }
+
+        state.local.camera = read_camera();
 
         // --- 1 RPM: entity list ptr ---
         state.entity_list = g_memory->read<uintptr_t>(
@@ -256,6 +269,39 @@ private:
     float cached_map_scale = 5.0f;
     std::string cached_map_name;
     std::chrono::steady_clock::time_point last_spotted_time[64];
+
+    CameraState read_camera()
+    {
+        CameraState cam;
+
+        uintptr_t view_render = g_memory->read<uintptr_t>(
+            g_memory->get_client_base() + g_offsets.client.dwViewRender);
+
+        if (!view_render)
+            return cam;
+
+        uintptr_t view = view_render + 0x10;
+
+        struct ViewData {
+            Vec3  origin;   // +0x00
+            Vec3  angles;   // +0x0C
+            float fov;      // +0x18
+        };
+
+        ViewData data{};
+        if (!g_memory->read_raw(view, &data, sizeof(data)))
+            return cam;
+
+        if (data.fov <= 0.0f || data.fov > 170.0f)
+            data.fov = 90.0f;
+
+        cam.origin = data.origin;
+        cam.angles = data.angles;
+        cam.fov    = data.fov;
+        cam.valid  = true;
+
+        return cam;
+    }
 
     void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,
                      uint16_t& out_def_index) {
@@ -327,7 +373,11 @@ private:
         player.team = team;
         player.health = health;
         player.origin = origin;
-        player.head_world = bone_buf[6].pos;  // bone 6 = head
+        player.head_world   = bone_buf[6].pos;
+        player.neck_world   = bone_buf[5].pos;
+        player.chest_world  = bone_buf[4].pos;
+        player.pelvis_world = bone_buf[0].pos;
+
         memcpy(player.name, name, 128);
 
         read_weapon(pawn, player.weapon, sizeof(player.weapon),

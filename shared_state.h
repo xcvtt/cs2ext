@@ -9,16 +9,23 @@ struct AimbotFrame {
     Matrix4x4 view_matrix{};
     float local_x = 0, local_y = 0, local_z = 0;
     int local_team = 0;
-    int local_health = 0;
     uintptr_t local_pawn = 0;
     int screen_w = 0;
     int screen_h = 0;
+
+    Vec3  eye_origin{};
+    Vec3  view_angles{};   // pitch, yaw, roll
+    float camera_fov = 90.0f;
+    bool  camera_valid = false;
 
     struct Target {
         bool valid = false;
         int team = 0;
         int health = 0;
         Vec3 head_pos{};
+        Vec3 neck_pos{};
+        Vec3 chest_pos{};
+        Vec3 pelvis_pos{};
     };
 
     Target targets[64]{};

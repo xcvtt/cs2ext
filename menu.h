@@ -65,6 +65,7 @@ private:
     bool bind_waiting_nade_add    = false;
     bool bind_waiting_nade_delete = false;
     bool bind_waiting_aimbot = false;
+    bool bind_waiting_trigger = false;
 
     void render_tab_main() {
         ImGui::Spacing();
@@ -408,19 +409,27 @@ private:
     }
 
     void render_tab_aim() {
-        ImGui::Spacing();
+        ImGui::TextColored({1.0f,0.0f,0.0f,1}, "Aim assist can get you VACLIVE banned.");
         ImGui::Checkbox("Enable aimbot", &g_settings.aimbot_enabled);
 
-        if (!g_settings.aimbot_enabled) {
-            ImGui::TextColored({1.0f,0.0f,0.0f,1}, "Aimbot can get you VACLIVE banned.");
-            return;
+        if (g_settings.aimbot_enabled) {
+            render_key_bind("Key",  g_settings.key_aimbot, bind_waiting_aimbot);
+            ImGui::SliderInt("Fov", &g_settings.aimbot_fov, 1, 360);
+            ImGui::SliderFloat("Smoothing", &g_settings.aimbot_smooth, 1.0f, 20.0f, "%.1f");
+            ImGui::Checkbox("Head only", &g_settings.aimbot_head_only);
         }
 
-        render_key_bind("Key",  g_settings.key_aimbot, bind_waiting_aimbot);
+        ImGui::Separator();
+        ImGui::Spacing();
 
-        ImGui::Indent();
-        ImGui::SliderInt("Fov", &g_settings.aimbot_fov, 1, 360);
-        ImGui::Unindent();
+        ImGui::Checkbox("Enable triggerbot", &g_settings.triggerbot_enabled);
+
+        if (g_settings.triggerbot_enabled)
+        {
+            render_key_bind("Trigger key", g_settings.key_triggerbot, bind_waiting_trigger);
+            ImGui::SliderInt("Delay ms", &g_settings.triggerbot_delay, 0, 300);
+            ImGui::Checkbox("Head only##trigger", &g_settings.triggerbot_head_only);
+        }
 
         ImGui::Separator();
     }
@@ -638,16 +647,27 @@ private:
     }
 
     void render_key_bind(const char* label, int& key, bool& waiting) {
+        static const char* skip_label = nullptr;
+
         ImGui::Text("%s:", label);
         ImGui::SameLine(160);
         char btn[64];
         if (waiting) snprintf(btn, sizeof(btn), "[...]##%s", label);
         else snprintf(btn, sizeof(btn), "%s##%s", vk_name(key), label);
-        if (ImGui::Button(btn, {100, 0})) waiting = true;
+
+        if (ImGui::Button(btn, {100, 0})) {
+            waiting = true;
+            skip_label = label;
+        }
+
         if (waiting) {
-            int pressed = scan_any_key();
-            if (pressed > 0) { key = pressed; waiting = false; }
-            else if (pressed == -1) waiting = false;
+            if (skip_label == label) {
+                skip_label = nullptr; // skip this one frame
+            } else {
+                int pressed = scan_any_key();
+                if (pressed > 0)  { key = pressed; waiting = false; }
+                else if (pressed == -1) waiting = false;
+            }
         }
     }
 

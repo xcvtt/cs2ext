@@ -9,7 +9,7 @@
 
 struct Offsets {
     struct {
-        uint32_t dwEntityList, dwViewMatrix, dwLocalPlayerPawn, dwLocalPlayerController, dwGlobalVars;
+        uint32_t dwEntityList, dwViewMatrix, dwViewRender, dwLocalPlayerPawn, dwLocalPlayerController, dwGlobalVars;
     } client;
     struct {
         uint32_t m_iTeamNum, m_pGameSceneNode, m_iHealth;
@@ -24,6 +24,7 @@ struct Offsets {
         uint32_t m_hPlayerPawn;
         uint32_t m_hPawn;
         uint32_t m_sSanitizedPlayerName;
+        uint32_t m_hObserverPawn;
     } CCSPlayerController;
     struct {
         uint32_t m_pObserverServices;
@@ -111,6 +112,7 @@ private:
             auto& cl = oj["client.dll"];
             client.dwEntityList = cl["dwEntityList"];
             client.dwViewMatrix = cl["dwViewMatrix"];
+            client.dwViewRender = cl["dwViewRender"];
             client.dwLocalPlayerPawn = cl["dwLocalPlayerPawn"];
             client.dwLocalPlayerController = cl["dwLocalPlayerController"];
             client.dwGlobalVars = cl["dwGlobalVars"];

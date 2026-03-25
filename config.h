@@ -159,6 +159,14 @@ public:
         write(f, "aimbot_enabled", g_settings.aimbot_enabled);
         write(f, "aimbot_fov", g_settings.aimbot_fov);
         write(f, "key_aimbot", g_settings.key_aimbot);
+        write(f, "aimbot_smooth", g_settings.aimbot_smooth);
+        write(f, "aimbot_head_only", g_settings.aimbot_head_only);
+
+        f << "\n[Triggerbot]\n";
+        write(f, "triggerbot_enabled", g_settings.triggerbot_enabled);
+        write(f, "key_triggerbot", g_settings.key_triggerbot);
+        write(f, "triggerbot_delay", g_settings.triggerbot_delay);
+        write(f, "triggerbot_head_only", g_settings.triggerbot_head_only);
 
         f.close();
         return true;
@@ -303,6 +311,13 @@ public:
         read(kv, "aimbot_enabled", g_settings.aimbot_enabled);
         read(kv, "aimbot_fov", g_settings.aimbot_fov);
         read(kv, "key_aimbot", g_settings.key_aimbot);
+        read(kv, "aimbot_smooth", g_settings.aimbot_smooth);
+        read(kv, "aimbot_head_only", g_settings.aimbot_head_only);
+
+        read(kv, "triggerbot_enabled", g_settings.triggerbot_enabled);
+        read(kv, "key_triggerbot", g_settings.key_triggerbot);
+        read(kv, "triggerbot_delay", g_settings.triggerbot_delay);
+        read(kv, "triggerbot_head_only", g_settings.triggerbot_head_only);
 
         return true;
     }

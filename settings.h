@@ -126,6 +126,14 @@ struct MenuSettings {
     bool aimbot_enabled = false;
     int key_aimbot = 'X';
     int aimbot_fov = 5;
+    float aimbot_smooth = 1.0f;
+    bool aimbot_head_only = true;
+
+    // Trigger
+    bool  triggerbot_enabled = false;
+    int   key_triggerbot     = 'X';
+    int   triggerbot_delay   = 50;
+    bool  triggerbot_head_only = true;
 
     // Crosshair
     bool crosshair_enabled = false;

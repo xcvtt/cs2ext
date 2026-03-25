@@ -6,7 +6,33 @@
 
 #include "settings.h"
 
-struct Vec3 { float x, y, z; };
+struct Vec3 {
+    float x, y, z;
+
+    float dot(const Vec3& other) const {
+        return x * other.x + y * other.y + z * other.z;
+    }
+
+    float length() const {
+        return sqrtf(x * x + y * y + z * z);
+    }
+
+    float length_sqr() const {
+        return x * x + y * y + z * z;
+    }
+
+    // Returns a normalized copy
+    Vec3 normalized() const {
+        float len = length();
+        if (len < 1e-6f) return {0,0,0}; // Avoid division by zero
+        return {x / len, y / len, z / len};
+    }
+
+    // Operators for Vec3 (if not present)
+    Vec3 operator+(const Vec3& other) const { return {x + other.x, y + other.y, z + other.z}; }
+    Vec3 operator-(const Vec3& other) const { return {x - other.x, y - other.y, z - other.z}; }
+    Vec3 operator*(float scalar) const { return {x * scalar, y * scalar, z * scalar}; }
+};
 struct Matrix4x4 { float m[4][4]; };
 struct CBoneData { Vec3 pos; float scale; float quat[4]; };
 
@@ -83,7 +109,11 @@ struct PlayerVisuals {
     char weapon[64]{};
     uint16_t weapon_def_index = 0;
     Vec3 origin{};
-    Vec3 head_world{};
+
+    Vec3 head_world{};      // bone 6
+    Vec3 neck_world{};      // bone 5
+    Vec3 chest_world{};     // bone 4
+    Vec3 pelvis_world{};    // bone 0
 };
 
 struct RadarPlayer {

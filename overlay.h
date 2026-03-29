@@ -56,47 +56,44 @@ public:
         width  = rc.right;
         height = rc.bottom;
 
-        wchar_t class_name[16];
-        srand(static_cast<unsigned>(GetTickCount64()));
-        for (int i = 0; i < 12; i++)
-            class_name[i] = L'a' + (rand() % 26);
-        class_name[12] = 0;
+        overlay_hwnd = FindWindowA("Chrome_WidgetWin_1", "Discord Overlay");
+        if (overlay_hwnd) {
+            printf("[+] Using discord overlay\n");
+            using_discord_overlay = true;
+        }
+        else {
+            printf("[+] Discord overlay not found. Falling back to CreateWindowExW\n");
+            wchar_t class_name[16];
+            srand(static_cast<unsigned>(GetTickCount64()));
+            for (int i = 0; i < 12; i++)
+                class_name[i] = L'a' + (rand() % 26);
+            class_name[12] = 0;
 
-        WNDCLASSEXW wc{};
-        wc.cbSize        = sizeof(wc);
-        wc.style         = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc   = wnd_proc;
-        wc.hInstance     = GetModuleHandle(nullptr);
-        wc.lpszClassName = class_name;
-        RegisterClassExW(&wc);
+            WNDCLASSEXW wc{};
+            wc.cbSize        = sizeof(wc);
+            wc.style         = CS_HREDRAW | CS_VREDRAW;
+            wc.lpfnWndProc   = wnd_proc;
+            wc.hInstance     = GetModuleHandle(nullptr);
+            wc.lpszClassName = class_name;
+            RegisterClassExW(&wc);
 
-        // THE MAGIC COMBO:
-        // WS_EX_LAYERED + WS_EX_TRANSPARENT  → flawless system-wide click-through.
-        // WS_EX_NOREDIRECTIONBITMAP           → prevents black screen, keeps FLIP_DISCARD zero-copy.
-        overlay_hwnd = CreateWindowExW(
-            WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED |
-            WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP,
-            wc.lpszClassName, L"", WS_POPUP,
-            0, 0, width, height,
-            nullptr, nullptr, wc.hInstance, nullptr);
+            overlay_hwnd = CreateWindowExW(
+                WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+                wc.lpszClassName, L"", WS_POPUP,
+                0, 0, width, height,
+                nullptr, nullptr, wc.hInstance, nullptr);
 
-        if (!overlay_hwnd) return false;
+            if (!overlay_hwnd) return false;
 
-        // Required to validate WS_EX_LAYERED for Windows input hit-testing.
-        SetLayeredWindowAttributes(overlay_hwnd, 0, 255, LWA_ALPHA);
+            SetLayeredWindowAttributes(overlay_hwnd, 0, 255, LWA_ALPHA);
+            MARGINS margins = {-1};
+            DwmExtendFrameIntoClientArea(overlay_hwnd, &margins);
 
-        MARGINS margins = { -1, -1, -1, -1 };
-        DwmExtendFrameIntoClientArea(overlay_hwnd, &margins);
-
-        BOOL disable_transitions = TRUE;
-        DwmSetWindowAttribute(overlay_hwnd, DWMWA_TRANSITIONS_FORCEDISABLED,
-                              &disable_transitions, sizeof(disable_transitions));
-
-        RECT game_rect;
-        GetWindowRect(game_hwnd, &game_rect);
-        SetWindowPos(overlay_hwnd, HWND_TOPMOST,
-                     game_rect.left, game_rect.top, width, height,
-                     SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            RECT game_rect;
+            GetWindowRect(game_hwnd, &game_rect);
+            SetWindowPos(overlay_hwnd, HWND_TOPMOST,
+                         game_rect.left, game_rect.top, width, height, SWP_SHOWWINDOW);
+        }
 
         if (!init_dx11()) return false;
 
@@ -268,6 +265,10 @@ public:
             update_window_tracking();
         }
 
+        if (using_discord_overlay && g_settings.menu_open) {
+            update_input();
+        }
+
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
@@ -277,43 +278,22 @@ public:
     // -------------------------------------------------------------------------
     void end_frame(int sync_interval) {
         ImGui::Render();
-        ImDrawData* draw_data = ImGui::GetDrawData();
-
-        // WAITABLE SWAPCHAIN: skip GPU work when DWM queue is full.
-        // CPU loop keeps running at full speed; GPU only draws at monitor refresh rate.
-        if (frame_latency_waitable_object) {
-            if (WaitForSingleObject(frame_latency_waitable_object, 0) == WAIT_TIMEOUT)
-                return;
-        }
-
+        const float clear[4] = {0, 0, 0, 0};
         context->OMSetRenderTargets(1, &rtv, nullptr);
-        const float clear[4] = { 0.f, 0.f, 0.f, 0.f };
         context->ClearRenderTargetView(rtv, clear);
-
-        if (draw_data && draw_data->TotalVtxCount > 0)
-            ImGui_ImplDX11_RenderDrawData(draw_data);
-
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
         swap_chain->Present(sync_interval, 0);
     }
 
-    // -------------------------------------------------------------------------
     void shutdown() {
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
-
-        if (frame_latency_waitable_object) {
-            CloseHandle(frame_latency_waitable_object);
-            frame_latency_waitable_object = nullptr;
-        }
-        if (dcomp_visual) { dcomp_visual->Release(); dcomp_visual = nullptr; }
-        if (dcomp_target) { dcomp_target->Release(); dcomp_target = nullptr; }
-        if (dcomp_device) { dcomp_device->Release(); dcomp_device = nullptr; }
-        if (rtv)          { rtv->Release();          rtv          = nullptr; }
-        if (swap_chain)   { swap_chain->Release();   swap_chain   = nullptr; }
-        if (context)      { context->Release();      context      = nullptr; }
-        if (device)       { device->Release();       device       = nullptr; }
-        if (overlay_hwnd) { DestroyWindow(overlay_hwnd); overlay_hwnd = nullptr; }
+        if (rtv) rtv->Release();
+        if (swap_chain) swap_chain->Release();
+        if (context) context->Release();
+        if (device) device->Release();
+        DestroyWindow(overlay_hwnd);
     }
 
     // -------------------------------------------------------------------------
@@ -385,20 +365,40 @@ public:
 // =============================================================================
 private:
 // =============================================================================
-
-    // DX11 + DComp objects
-    ID3D11Device*        device       = nullptr;
-    ID3D11DeviceContext* context      = nullptr;
-    IDXGISwapChain2*     swap_chain   = nullptr;   // IDXGISwapChain2 for waitable object
-    ID3D11RenderTargetView* rtv       = nullptr;
-    HANDLE frame_latency_waitable_object = nullptr;
-
-    IDCompositionDevice* dcomp_device = nullptr;
-    IDCompositionTarget* dcomp_target = nullptr;
-    IDCompositionVisual* dcomp_visual = nullptr;
+    ID3D11Device* device = nullptr;
+    ID3D11DeviceContext* context = nullptr;
+    IDXGISwapChain* swap_chain = nullptr;
+    ID3D11RenderTargetView* rtv = nullptr;
 
     bool was_visible = true;
     RECT last_game_rect{};
+
+    bool using_discord_overlay = false;
+
+    void update_input()
+    {
+        ImGuiIO& io = ImGui::GetIO();
+
+        // --- Mouse ---
+        POINT p;
+        GetCursorPos(&p);
+        ScreenToClient(overlay_hwnd, &p);
+        io.MousePos = ImVec2((float)p.x, (float)p.y);
+        io.MouseDown[0] = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
+        io.MouseDown[1] = GetAsyncKeyState(VK_RBUTTON) & 0x8000;
+        io.MouseDown[2] = GetAsyncKeyState(VK_MBUTTON) & 0x8000;
+
+        // --- Keyboard ---
+        for (int key = 0; key < 256; key++) {
+            io.KeysDown[key] = (GetAsyncKeyState(key) & 0x8000) != 0;
+        }
+
+        // Optional: handle modifier keys
+        io.KeyCtrl  = io.KeysDown[VK_CONTROL];
+        io.KeyShift = io.KeysDown[VK_SHIFT];
+        io.KeyAlt   = io.KeysDown[VK_MENU];
+        io.KeySuper = io.KeysDown[VK_LWIN] || io.KeysDown[VK_RWIN];
+    }
 
     // -------------------------------------------------------------------------
     void update_window_tracking() {
@@ -429,92 +429,31 @@ private:
         }
     }
 
-bool init_dx11() {
-    UINT device_flags = D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-    D3D_FEATURE_LEVEL feature_level;
+    bool init_dx11() {
+        DXGI_SWAP_CHAIN_DESC sd{};
+        sd.BufferCount = 2;
+        sd.BufferDesc.Width = width;
+        sd.BufferDesc.Height = height;
+        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.BufferDesc.RefreshRate = {0, 1};
+        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        sd.OutputWindow = overlay_hwnd;
+        sd.SampleDesc.Count = 1;
+        sd.Windowed = TRUE;
+        sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-    if (FAILED(D3D11CreateDevice(
-            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-            device_flags, nullptr, 0, D3D11_SDK_VERSION,
-            &device, &feature_level, &context)))
-        return false;
+        D3D_FEATURE_LEVEL level;
+        if (FAILED(D3D11CreateDeviceAndSwapChain(
+                nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+                nullptr, 0, D3D11_SDK_VERSION,
+                &sd, &swap_chain, &device, &level, &context)))
+            return false;
 
-    IDXGIDevice*   dxgi_device  = nullptr;
-    IDXGIAdapter*  dxgi_adapter = nullptr;
-    IDXGIFactory2* dxgi_factory = nullptr;
-
-    // --- acquire DXGI objects, releasing all on any failure ---
-    if (FAILED(device->QueryInterface(IID_PPV_ARGS(&dxgi_device))))
-        return false;
-
-    HRESULT hr = dxgi_device->GetAdapter(&dxgi_adapter);
-    if (FAILED(hr)) { dxgi_device->Release(); return false; }
-
-    hr = dxgi_adapter->GetParent(IID_PPV_ARGS(&dxgi_factory));
-    dxgi_adapter->Release();
-    if (FAILED(hr)) { dxgi_device->Release(); return false; }
-
-    DXGI_SWAP_CHAIN_DESC1 sd{};
-    sd.Width            = width;
-    sd.Height           = height;
-    sd.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
-    sd.SampleDesc.Count = 1;
-    sd.BufferUsage      = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.BufferCount      = 2;
-    sd.SwapEffect       = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    sd.AlphaMode        = DXGI_ALPHA_MODE_PREMULTIPLIED;
-    sd.Flags            = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-
-    IDXGISwapChain1* swap_chain1 = nullptr;
-    hr = dxgi_factory->CreateSwapChainForComposition(device, &sd, nullptr, &swap_chain1);
-    dxgi_factory->Release();
-
-    if (FAILED(hr)) { dxgi_device->Release(); return false; }
-
-    hr = swap_chain1->QueryInterface(IID_PPV_ARGS(&swap_chain));
-    swap_chain1->Release();
-    if (FAILED(hr)) { dxgi_device->Release(); return false; }
-
-    // --- bind swap chain to overlay via DComp BEFORE touching frame latency ---
-    if (!bind_swap_chain_to_window(swap_chain, dxgi_device)) {
-        dxgi_device->Release();
-        return false;
-    }
-    dxgi_device->Release();
-
-    // SetMaximumFrameLatency and GetFrameLatencyWaitableObject must come
-    // AFTER DCompositionDevice::Commit() so DWM has already registered
-    // the swap chain in the visual tree.
-    swap_chain->SetMaximumFrameLatency(1);
-    frame_latency_waitable_object = swap_chain->GetFrameLatencyWaitableObject();
-
-    // --- RTV and viewport ---
-    ID3D11Texture2D* back_buffer = nullptr;
-    swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
-    device->CreateRenderTargetView(back_buffer, nullptr, &rtv);
-    back_buffer->Release();
-
-    D3D11_VIEWPORT vp{};
-    vp.Width    = static_cast<float>(width);
-    vp.Height   = static_cast<float>(height);
-    vp.MaxDepth = 1.0f;
-    context->RSSetViewports(1, &vp);
-
-    return true;
-}
-
-    // -------------------------------------------------------------------------
-    bool bind_swap_chain_to_window(IDXGISwapChain1* sc, IDXGIDevice* dxgi_dev) {
-        // dxgi_dev is borrowed — caller owns its lifetime, don't Release here
-        HRESULT hr = DCompositionCreateDevice(dxgi_dev, IID_PPV_ARGS(&dcomp_device));
-        if (FAILED(hr)) return false;
-
-        if (FAILED(dcomp_device->CreateTargetForHwnd(overlay_hwnd, TRUE, &dcomp_target))) return false;
-        if (FAILED(dcomp_device->CreateVisual(&dcomp_visual)))                             return false;
-        if (FAILED(dcomp_visual->SetContent(sc)))                                          return false;
-        if (FAILED(dcomp_target->SetRoot(dcomp_visual)))                                   return false;
-        if (FAILED(dcomp_device->Commit()))                                                return false;
-
+        ID3D11Texture2D* bb;
+        swap_chain->GetBuffer(0, IID_PPV_ARGS(&bb));
+        device->CreateRenderTargetView(bb, nullptr, &rtv);
+        bb->Release();
         return true;
     }
 

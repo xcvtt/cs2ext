@@ -302,12 +302,12 @@ int main() {
         }
 
         if (state.local.observer_pawn != 0 && state.local.pawn != 0 && !state.map_name.empty() && state.map_name != "<empty>" && state.map_name != last_map_name) {
-            printf( "[info] map change: %s -> %s\n", last_map_name.data(), state.map_name.data());
+            printf( "[+] Map change: %s -> %s\n", last_map_name.data(), state.map_name.data());
             last_map_name = state.map_name;
             g_bvh.clear();
-            printf( "[info] parsing bvh for %s\n", last_map_name.data());
+            printf( "[+] Parsing bvh for %s\n", last_map_name.data());
             g_bvh.parse();
-            printf( "[ok] bvh parsed\n" );
+            printf( "[+] Bvh parsed\n" );
         }
 
         float fwd_x = state.view_matrix.m[2][0];

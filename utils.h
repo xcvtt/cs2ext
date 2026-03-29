@@ -82,23 +82,24 @@ inline const char* vk_name(int vk) {
     }
 }
 
-inline int scan_any_key() {
+inline int scan_any_key(bool allow_mouse1) {
+    // 1. Check Escape FIRST, before the loop, so we can cancel the bind
+    if (GetAsyncKeyState(VK_ESCAPE) & 1)
+        return -1;
+
     for (int k = 1; k < 256; ++k)
     {
-        if (k == VK_LBUTTON || k == VK_RBUTTON || k == VK_MBUTTON ||
-            k == VK_XBUTTON1 || k == VK_XBUTTON2 ||
-            k == VK_SHIFT || k == VK_CONTROL || k == VK_MENU)
-        {
-            if (GetAsyncKeyState(k) & 1)
-                return k;
+        // Skip Escape in the loop so we don't accidentally bind it
+        if (k == VK_ESCAPE)
             continue;
-        }
+
+        // NEW: Ignore left click (VK_LBUTTON) if the flag is false
+        if (!allow_mouse1 && k == VK_LBUTTON)
+            continue;
 
         if (GetAsyncKeyState(k) & 1)
             return k;
     }
 
-
-    if (GetAsyncKeyState(VK_ESCAPE) & 1) return -1;
     return 0;
 }

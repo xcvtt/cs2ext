@@ -646,7 +646,7 @@ private:
             g_overlay.font_rebuild_needed = true;
     }
 
-    void render_key_bind(const char* label, int& key, bool& waiting) {
+    void render_key_bind(const char* label, int& key, bool& waiting, bool allow_mouse1 = false) {
         static const char* skip_label = nullptr;
 
         ImGui::Text("%s:", label);
@@ -658,15 +658,21 @@ private:
         if (ImGui::Button(btn, {100, 0})) {
             waiting = true;
             skip_label = label;
+
+            // Flush the Windows API key states so the UI click isn't caught
+            for (int i = 1; i < 256; i++) {
+                GetAsyncKeyState(i);
+            }
         }
 
         if (waiting) {
             if (skip_label == label) {
                 skip_label = nullptr; // skip this one frame
             } else {
-                int pressed = scan_any_key();
+                // Pass the flag to our scanning function
+                int pressed = scan_any_key(allow_mouse1);
                 if (pressed > 0)  { key = pressed; waiting = false; }
-                else if (pressed == -1) waiting = false;
+                else if (pressed == -1) waiting = false; // Escape pressed
             }
         }
     }

@@ -379,25 +379,15 @@ private:
     {
         ImGuiIO& io = ImGui::GetIO();
 
-        // --- Mouse ---
         POINT p;
         GetCursorPos(&p);
         ScreenToClient(overlay_hwnd, &p);
+
         io.MousePos = ImVec2((float)p.x, (float)p.y);
+
         io.MouseDown[0] = GetAsyncKeyState(VK_LBUTTON) & 0x8000;
         io.MouseDown[1] = GetAsyncKeyState(VK_RBUTTON) & 0x8000;
         io.MouseDown[2] = GetAsyncKeyState(VK_MBUTTON) & 0x8000;
-
-        // --- Keyboard ---
-        for (int key = 0; key < 256; key++) {
-            io.KeysDown[key] = (GetAsyncKeyState(key) & 0x8000) != 0;
-        }
-
-        // Optional: handle modifier keys
-        io.KeyCtrl  = io.KeysDown[VK_CONTROL];
-        io.KeyShift = io.KeysDown[VK_SHIFT];
-        io.KeyAlt   = io.KeysDown[VK_MENU];
-        io.KeySuper = io.KeysDown[VK_LWIN] || io.KeysDown[VK_RWIN];
     }
 
     // -------------------------------------------------------------------------

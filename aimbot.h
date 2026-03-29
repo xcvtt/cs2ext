@@ -320,8 +320,10 @@ static void aimbot_thread_func()
     {
         auto tick_start = std::chrono::high_resolution_clock::now();
 
-        triggerbot_tick();
-        aimbot_tick();
+        if (g_overlay.is_game_window()) {
+            triggerbot_tick();
+            aimbot_tick();
+        }
 
         limit_frame(tick_start, tick_fps);
     }

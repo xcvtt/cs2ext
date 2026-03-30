@@ -83,23 +83,50 @@ inline const char* vk_name(int vk) {
 }
 
 inline int scan_any_key(bool allow_mouse1) {
-    // 1. Check Escape FIRST, before the loop, so we can cancel the bind
-    if (GetAsyncKeyState(VK_ESCAPE) & 1)
+    static bool prev_state[256] = {};
+
+    // Check Escape first
+    bool esc_down = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    if (esc_down && !prev_state[VK_ESCAPE]) {
+        // Update all states before returning
+        for (int k = 1; k < 256; ++k)
+            prev_state[k] = (GetAsyncKeyState(k) & 0x8000) != 0;
         return -1;
+    }
+
+    int result = 0;
 
     for (int k = 1; k < 256; ++k)
     {
-        // Skip Escape in the loop so we don't accidentally bind it
-        if (k == VK_ESCAPE)
-            continue;
+        bool is_down = (GetAsyncKeyState(k) & 0x8000) != 0;
+        bool was_down = prev_state[k];
 
-        // NEW: Ignore left click (VK_LBUTTON) if the flag is false
-        if (!allow_mouse1 && k == VK_LBUTTON)
+        if (k == VK_ESCAPE) {
+            prev_state[k] = is_down;
             continue;
+        }
 
-        if (GetAsyncKeyState(k) & 1)
-            return k;
+        if (!allow_mouse1 && k == VK_LBUTTON) {
+            prev_state[k] = is_down;
+            continue;
+        }
+
+        // Skip modifier keys - you probably don't want to bind ctrl/shift/alt alone
+        if (k == VK_SHIFT || k == VK_CONTROL || k == VK_MENU ||
+            k == VK_LSHIFT || k == VK_RSHIFT ||
+            k == VK_LCONTROL || k == VK_RCONTROL ||
+            k == VK_LMENU || k == VK_RMENU) {
+            prev_state[k] = is_down;
+            continue;
+            }
+
+        // Detect fresh press (edge: not down before, down now)
+        if (is_down && !was_down && result == 0) {
+            result = k;
+        }
+
+        prev_state[k] = is_down;
     }
 
-    return 0;
+    return result;
 }

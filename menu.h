@@ -647,33 +647,23 @@ private:
     }
 
     void render_key_bind(const char* label, int& key, bool& waiting, bool allow_mouse1 = false) {
-        static const char* skip_label = nullptr;
-
         ImGui::Text("%s:", label);
         ImGui::SameLine(160);
+
         char btn[64];
-        if (waiting) snprintf(btn, sizeof(btn), "[...]##%s", label);
-        else snprintf(btn, sizeof(btn), "%s##%s", vk_name(key), label);
+        if (waiting)
+            snprintf(btn, sizeof(btn), "[...]##%s", label);
+        else
+            snprintf(btn, sizeof(btn), "%s##%s", vk_name(key), label);
 
         if (ImGui::Button(btn, {100, 0})) {
             waiting = true;
-            skip_label = label;
-
-            // Flush the Windows API key states so the UI click isn't caught
-            for (int i = 1; i < 256; i++) {
-                GetAsyncKeyState(i);
-            }
         }
 
         if (waiting) {
-            if (skip_label == label) {
-                skip_label = nullptr; // skip this one frame
-            } else {
-                // Pass the flag to our scanning function
-                int pressed = scan_any_key(allow_mouse1);
-                if (pressed > 0)  { key = pressed; waiting = false; }
-                else if (pressed == -1) waiting = false; // Escape pressed
-            }
+            int pressed = scan_any_key(allow_mouse1);
+            if (pressed > 0)   { key = pressed; waiting = false; }
+            else if (pressed == -1) { waiting = false; } // Escape = cancel
         }
     }
 

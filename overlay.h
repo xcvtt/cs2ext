@@ -48,7 +48,20 @@ public:
 
     // -------------------------------------------------------------------------
     bool init(const wchar_t* target_window) {
-        game_hwnd = FindWindowW(nullptr, target_window);
+        if (!resolver_.resolve_win32k()) {
+            printf("[-] win32k SSN resolution failed\n");
+            return false;
+        }
+
+        if (!invoker_.init_win32k()) {
+            printf("[-] win32k stub allocation failed\n");
+            return false;
+        }
+
+        // Wire up Win32k syscalls
+        win32k_.init(invoker_, resolver_);
+
+        game_hwnd = win32k_.find_window(nullptr, target_window);
         if (!game_hwnd) return false;
 
         RECT rc;
@@ -56,7 +69,9 @@ public:
         width  = rc.right;
         height = rc.bottom;
 
-        overlay_hwnd = FindWindowA("Chrome_WidgetWin_1", "Discord Overlay");
+        // Find Discord's overlay — fully through syscall
+        overlay_hwnd = win32k_.find_window(L"Chrome_WidgetWin_1", L"Discord Overlay"
+        );
         if (overlay_hwnd) {
             printf("[+] Using discord overlay\n");
             using_discord_overlay = true;
@@ -100,7 +115,6 @@ public:
         scan_fonts();
         init_imgui();
 
-        ShowWindow(overlay_hwnd, SW_SHOWNOACTIVATE);
         return true;
     }
 
@@ -137,36 +151,41 @@ public:
     // interactive=false → returns focus + cursor to the game.
     // -------------------------------------------------------------------------
     void set_interactive(bool interactive) {
-        LONG ex = GetWindowLongW(overlay_hwnd, GWL_EXSTYLE);
+        LONG_PTR ex = GetWindowLongW(overlay_hwnd, GWL_EXSTYLE);
+
         if (interactive) {
-            // Remove click-through so overlay receives mouse input.
-            if (ex & WS_EX_TRANSPARENT)
-                SetWindowLongW(overlay_hwnd, GWL_EXSTYLE, ex & ~WS_EX_TRANSPARENT);
+            // Remove click-through
+            if (ex & WS_EX_TRANSPARENT) {
+                win32k_.set_window_long(
+                    overlay_hwnd, GWL_EXSTYLE,
+                    ex & ~WS_EX_TRANSPARENT
+                );
+            }
+
+            win32k_.set_window_pos(
+                overlay_hwnd, HWND_TOPMOST,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED
+            );
 
             force_foreground(overlay_hwnd);
-            while (ShowCursor(TRUE) < 0) {}
-            Sleep(50);
-
-            RECT wr;
-            GetWindowRect(overlay_hwnd, &wr);
-            SetCursorPos((wr.left + wr.right) / 2, (wr.top + wr.bottom) / 2);
-            ClipCursor(&wr);
-
-            POINT cursor;
-            GetCursorPos(&cursor);
-            ScreenToClient(overlay_hwnd, &cursor);
-            PostMessage(overlay_hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(cursor.x, cursor.y));
-            PostMessage(overlay_hwnd, WM_ACTIVATE, WA_ACTIVE, 0);
         } else {
-            // Restore click-through so the game gets all mouse input.
-            ClipCursor(nullptr);
-            if (!(ex & WS_EX_TRANSPARENT))
-                SetWindowLongW(overlay_hwnd, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT);
+            // Restore click-through
+            if (!(ex & WS_EX_TRANSPARENT)) {
+                win32k_.set_window_long(
+                    overlay_hwnd, GWL_EXSTYLE,
+                    ex | WS_EX_TRANSPARENT
+                );
+            }
 
-            while (ShowCursor(FALSE) >= 0) {}
+            win32k_.set_window_pos(
+                overlay_hwnd, HWND_TOPMOST,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED
+            );
+
             if (game_hwnd && IsWindow(game_hwnd)) {
                 force_foreground(game_hwnd);
-                PostMessage(game_hwnd, WM_ACTIVATE, WA_ACTIVE, 0);
             }
         }
     }
@@ -303,7 +322,7 @@ public:
         if (device)     { device->Release();      device = nullptr; }
 
         if (!using_discord_overlay)
-            DestroyWindow(overlay_hwnd);
+            win32k_.destroy_window(overlay_hwnd);
     }
 
     // -------------------------------------------------------------------------
@@ -385,7 +404,11 @@ private:
 
     bool using_discord_overlay = false;
 
-    ImGuiKey VirtualKeyToImGuiKey(int vk)
+    SyscallInvoker  invoker_;
+    SyscallResolver resolver_;
+    Win32kSyscall   win32k_;
+
+    static ImGuiKey VirtualKeyToImGuiKey(int vk)
     {
         switch (vk)
         {
@@ -584,18 +607,21 @@ private:
 
     // -------------------------------------------------------------------------
     void update_window_tracking() {
+        if (using_discord_overlay)
+            return;
+
         bool game_visible = !IsIconic(game_hwnd);
         HWND fg           = GetForegroundWindow();
         bool should_show  = game_visible && (fg == game_hwnd || fg == overlay_hwnd);
 
         if (!should_show) {
             if (was_visible) {
-                ShowWindow(overlay_hwnd, SW_HIDE);
+                win32k_.show_window(overlay_hwnd, SW_HIDE);
                 was_visible = false;
             }
         } else {
             if (!was_visible) {
-                ShowWindow(overlay_hwnd, SW_SHOWNOACTIVATE);
+                win32k_.show_window(overlay_hwnd, SW_SHOWNOACTIVATE);
                 was_visible = true;
             }
             RECT gr;
@@ -603,7 +629,7 @@ private:
             if (gr.left   != last_game_rect.left  || gr.top    != last_game_rect.top ||
                 gr.right  != last_game_rect.right  || gr.bottom != last_game_rect.bottom) {
                 last_game_rect = gr;
-                SetWindowPos(overlay_hwnd, HWND_TOPMOST,
+                win32k_.set_window_pos(overlay_hwnd, HWND_TOPMOST,
                              gr.left, gr.top,
                              gr.right - gr.left, gr.bottom - gr.top,
                              SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOREDRAW);
@@ -748,20 +774,19 @@ private:
     }
 
     // -------------------------------------------------------------------------
-    static void force_foreground(HWND hwnd) {
+    void force_foreground(HWND hwnd) {
         HWND  fg_hwnd   = GetForegroundWindow();
         DWORD fg_thread = GetWindowThreadProcessId(fg_hwnd, nullptr);
         DWORD our_thread= GetCurrentThreadId();
+
         if (fg_thread != our_thread) {
-            AttachThreadInput(our_thread, fg_thread, TRUE);
-            SetForegroundWindow(hwnd);
-            SetFocus(hwnd);
-            BringWindowToTop(hwnd);
-            AttachThreadInput(our_thread, fg_thread, FALSE);
+            win32k_.attach_thread_input(our_thread, fg_thread, TRUE);
+            win32k_.set_foreground_window(hwnd);
+            win32k_.set_focus(hwnd);
+            win32k_.attach_thread_input(our_thread, fg_thread, FALSE);
         } else {
-            SetForegroundWindow(hwnd);
-            SetFocus(hwnd);
-            BringWindowToTop(hwnd);
+            win32k_.set_foreground_window(hwnd);
+            win32k_.set_focus(hwnd);
         }
     }
 

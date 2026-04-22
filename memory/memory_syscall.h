@@ -109,6 +109,9 @@ private:
         invoker_.set_ssn(SyscallInvoker::IDX_READ,  resolver_.ssn_read);
         invoker_.set_ssn(SyscallInvoker::IDX_CLOSE, resolver_.ssn_close);
 
+        if (!resolver_.resolve_win32k()) return false;
+        if (!invoker_.init_win32k()) return false;
+
         return invoker_.is_ready();
     }
 

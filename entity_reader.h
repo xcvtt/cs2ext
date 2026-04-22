@@ -303,25 +303,33 @@ private:
         return cam;
     }
 
-    void read_weapon(uintptr_t pawn, char* out_name, size_t max_len,
-                     uint16_t& out_def_index) {
+    void read_weapon(uintptr_t pawn, uintptr_t entity_list,
+                     char* out_name, size_t max_len, uint16_t& out_def_index) {
         out_name[0] = 0;
         out_def_index = 0;
 
-        // --- 1 RPM: weapon ptr ---
-        uintptr_t weapon = g_memory->read<uintptr_t>(
-            pawn + g_offsets.C_CSPlayerPawnBase.m_pClippingWeapon);
+        // 1. Weapon services
+        uintptr_t weapon_services = g_memory->read<uintptr_t>(
+            pawn + g_offsets.C_CSPlayerPawnBase.m_pWeaponServices);
+        if (!weapon_services) return;
+
+        // 2. Active weapon handle
+        uint32_t handle = g_memory->read<uint32_t>(
+            weapon_services + g_offsets.CPlayer_WeaponServices.m_hActiveWeapon);
+        if ((handle & 0xFFFFFF) == 0xFFFFFF) return;
+
+        // 3. Resolve via your existing helper
+        uintptr_t weapon = EntityList::resolve_handle(entity_list, handle);
         if (!weapon) return;
 
-        // --- 1 RPM: def index ---
+        // 4. Def index — same as before
         uint16_t def_index = g_memory->read<uint16_t>(
             weapon + g_offsets.C_EconEntity.m_AttributeManager
                    + g_offsets.C_AttributeContainer.m_Item
                    + g_offsets.C_EconItemView.m_iItemDefinitionIndex);
-
         if (def_index == 0) return;
-        out_def_index = def_index;
 
+        out_def_index = def_index;
         const WeaponInfo* info = lookup_weapon(def_index);
         if (info)
             snprintf(out_name, max_len, "%s", info->name);
@@ -380,8 +388,7 @@ private:
 
         memcpy(player.name, name, 128);
 
-        read_weapon(pawn, player.weapon, sizeof(player.weapon),
-                    player.weapon_def_index);
+        read_weapon(pawn, state.entity_list, player.weapon, sizeof(player.weapon), player.weapon_def_index);
 
         for (int b = 0; b < MAX_BONE; b++)
             player.visible[b] = w2s_depth(

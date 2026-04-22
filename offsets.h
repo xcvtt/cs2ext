@@ -39,8 +39,11 @@ struct Offsets {
         uint32_t m_vecViewOffset;
     } C_BaseModelEntity;
     struct {
-        uint32_t m_pClippingWeapon;
+        uint32_t m_pWeaponServices;
     } C_CSPlayerPawnBase;
+    struct {
+        uint32_t m_hActiveWeapon;
+    } CPlayer_WeaponServices;
     struct {
         uint32_t m_AttributeManager;
     } C_EconEntity;
@@ -141,14 +144,12 @@ private:
                 cs["C_BaseModelEntity"]["fields"]["m_vecViewOffset"];
 
             // Weapon reading offsets
-            C_CSPlayerPawnBase.m_pClippingWeapon =
-                cs["C_CSPlayerPawn"]["fields"]["m_pClippingWeapon"];
-            C_EconEntity.m_AttributeManager =
-                cs["C_EconEntity"]["fields"]["m_AttributeManager"];
-            C_AttributeContainer.m_Item =
-                cs["C_AttributeContainer"]["fields"]["m_Item"];
-            C_EconItemView.m_iItemDefinitionIndex =
-                cs["C_EconItemView"]["fields"]["m_iItemDefinitionIndex"];
+            C_CSPlayerPawnBase.m_pWeaponServices = cs["C_BasePlayerPawn"]["fields"]["m_pWeaponServices"];
+            CPlayer_WeaponServices.m_hActiveWeapon = cs["CPlayer_WeaponServices"]["fields"]["m_hActiveWeapon"];
+
+            C_EconEntity.m_AttributeManager = cs["C_EconEntity"]["fields"]["m_AttributeManager"];
+            C_AttributeContainer.m_Item = cs["C_AttributeContainer"]["fields"]["m_Item"];
+            C_EconItemView.m_iItemDefinitionIndex = cs["C_EconItemView"]["fields"]["m_iItemDefinitionIndex"];
 
             C_CSPlayerPawn.m_entitySpottedState = cs["C_CSPlayerPawn"]["fields"]["m_entitySpottedState"];
             EntitySpottedState_t.m_bSpotted = cs["EntitySpottedState_t"]["fields"]["m_bSpotted"];

@@ -37,12 +37,12 @@ struct Matrix4x4 { float m[4][4]; };
 struct CBoneData { Vec3 pos; float scale; float quat[4]; };
 
 // Bone indices
-static constexpr int BONE_HEAD = 6, BONE_NECK = 5, BONE_SPINE1 = 4,
-    BONE_SPINE2 = 2, BONE_PELVIS = 0,
-    BONE_LSHOULDER = 8, BONE_LELBOW = 9, BONE_LHAND = 10,
+static constexpr int BONE_HEAD = 7, BONE_NECK = 6, BONE_SPINE1 = 3,
+    BONE_SPINE2 = 4, BONE_PELVIS = 1,
+    BONE_LSHOULDER = 9, BONE_LELBOW = 10, BONE_LHAND = 11,
     BONE_RSHOULDER = 13, BONE_RELBOW = 14, BONE_RHAND = 15,
-    BONE_LHIP = 22, BONE_LKNEE = 23, BONE_LFOOT = 24,
-    BONE_RHIP = 25, BONE_RKNEE = 26, BONE_RFOOT = 27;
+    BONE_LHIP = 17, BONE_LKNEE = 18, BONE_LFOOT = 19,
+    BONE_RHIP = 20, BONE_RKNEE = 21, BONE_RFOOT = 22;
 static constexpr int MAX_BONE = 28;
 
 // Simple skeleton connections for wire mode

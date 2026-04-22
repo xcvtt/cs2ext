@@ -394,7 +394,7 @@ private:
             ImGui::Unindent();
         }
         ImGui::Separator();
-        ImGui::SliderFloat("Size", &g_settings.radar_size, 100, 400, "%.0f");
+        ImGui::SliderFloat("Size", &g_settings.radar_size, 100, 1000, "%.0f");
         ImGui::SliderFloat("Zoom", &g_settings.radar_zoom, 0.1f, 1.0f, "%.2fx");
         ImGui::SliderFloat("Opacity", &g_settings.radar_bg_alpha, 0.0f, 1.0f, "%.2f");
         ImGui::DragFloat("Position X", &g_settings.radar_x, 1, 0, 3000);

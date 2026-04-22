@@ -42,7 +42,7 @@ static constexpr int BONE_HEAD = 7, BONE_NECK = 6, BONE_SPINE1 = 3,
     BONE_LSHOULDER = 9, BONE_LELBOW = 10, BONE_LHAND = 11,
     BONE_RSHOULDER = 13, BONE_RELBOW = 14, BONE_RHAND = 15,
     BONE_LHIP = 17, BONE_LKNEE = 18, BONE_LFOOT = 19,
-    BONE_RHIP = 20, BONE_RKNEE = 21, BONE_RFOOT = 22;
+    BONE_RHIP = 20, BONE_RKNEE = 21, BONE_RFOOT = 22, BONE_CHEST = 23;
 static constexpr int MAX_BONE = 28;
 
 // Simple skeleton connections for wire mode

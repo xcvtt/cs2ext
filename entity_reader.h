@@ -381,10 +381,10 @@ private:
         player.team = team;
         player.health = health;
         player.origin = origin;
-        player.head_world   = bone_buf[6].pos;
-        player.neck_world   = bone_buf[5].pos;
-        player.chest_world  = bone_buf[4].pos;
-        player.pelvis_world = bone_buf[0].pos;
+        player.head_world   = bone_buf[BONE_HEAD].pos;
+        player.neck_world   = bone_buf[BONE_NECK].pos;
+        player.chest_world  = bone_buf[BONE_CHEST].pos;
+        player.pelvis_world = bone_buf[BONE_PELVIS].pos;
 
         memcpy(player.name, name, 128);
 

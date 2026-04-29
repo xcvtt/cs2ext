@@ -12,7 +12,8 @@
 
 class MemoryDriver : public IMemory {
 public:
-    MemoryDriver() = default;
+    explicit MemoryDriver(bool use_kdmapper = false)
+        : m_use_kdmapper(use_kdmapper) {}
 
     ~MemoryDriver() override {
         close();
@@ -22,44 +23,65 @@ public:
         close();
 
         // Step 1: System checks and setup
-        auto result = DriverManager::setup();
-        switch (result) {
-        case DriverManager::NEED_ADMIN:
-            printf("[-] Kernel driver requires administrator privileges.\n");
-            return false;
+        if (m_use_kdmapper) {
+            auto result = DriverManager::setup_kdmapper();
+            switch (result) {
+                case DriverManager::NEED_ADMIN:
+                    printf("[-] kdmapper requires administrator privileges.\n");
+                    return false;
+                case DriverManager::NEED_REBOOT:
+                    printf("[-] Reboot required. Run again after restart.\n");
+                    return false;
+                case DriverManager::DRIVER_FILE_MISSING:
+                    printf("[-] MemReader.sys or kdmapper.exe not found.\n");
+                    return false;
+                case DriverManager::SETUP_FAILED:
+                    printf("[-] kdmapper launch failed.\n");
+                    return false;
+                case DriverManager::READY:
+                    break;
+                default: ;
+            }
+        } else {
+            auto result = DriverManager::setup();
+            switch (result) {
+                case DriverManager::NEED_ADMIN:
+                    printf("[-] Kernel driver requires administrator privileges.\n");
+                    return false;
 
-        case DriverManager::NEED_BIOS:
-            printf("[-] Disable Secure Boot in BIOS first.\n");
-            return false;
+                case DriverManager::NEED_BIOS:
+                    printf("[-] Disable Secure Boot in BIOS first.\n");
+                    return false;
 
-        case DriverManager::NEED_REBOOT:
-            printf("[-] Reboot required. Run again after restart.\n");
-            return false;
+                case DriverManager::NEED_REBOOT:
+                    printf("[-] Reboot required. Run again after restart.\n");
+                    return false;
 
-        case DriverManager::DRIVER_FILE_MISSING:
-            printf("[-] MemReader.sys not found.\n");
-            return false;
+                case DriverManager::DRIVER_FILE_MISSING:
+                    printf("[-] MemReader.sys not found.\n");
+                    return false;
 
-        case DriverManager::SETUP_FAILED:
-            printf("[-] Driver setup failed.\n");
-            return false;
+                case DriverManager::SETUP_FAILED:
+                    printf("[-] Driver setup failed.\n");
+                    return false;
 
-        case DriverManager::READY:
-            break;
+                case DriverManager::READY:
+                    break;
+            }
+
+            // Step 2: Load the driver
+            if (!DriverManager::load_driver()) {
+                printf("[-] Failed to load driver.\n");
+                return false;
+            }
+
+            // Mark that we loaded the driver (for cleanup on exit)
+            driver_loaded_by_us = true;
         }
-
-        // Step 2: Load the driver
-        if (!DriverManager::load_driver()) {
-            printf("[-] Failed to load driver.\n");
-            return false;
-        }
-
-        // Mark that we loaded the driver (for cleanup on exit)
-        driver_loaded_by_us = true;
 
         // Step 3: Open handle to the driver device
         h_driver = CreateFileW(
-            DRIVER_USER_PATH,
+            m_use_kdmapper ? KDMP_USER_PATH : DRIVER_USER_PATH,
             GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr, OPEN_EXISTING, 0, nullptr
@@ -171,6 +193,7 @@ private:
     HANDLE    h_driver = INVALID_HANDLE_VALUE;
     DWORD     pid = 0;
     bool      driver_loaded_by_us = false;
+    bool      m_use_kdmapper = false;
 
     uintptr_t query_module_base(const wchar_t* module_name, size_t* out_size) const {
         if (h_driver == INVALID_HANDLE_VALUE || !pid) return 0;

@@ -15,6 +15,8 @@ public:
         bool driver_file_exists;
         bool driver_already_loaded;
         bool is_admin;
+        bool vulnerable_driver_blocklist_enabled;
+        bool memory_integrity_enabled;
     };
 
     static SystemStatus check_system() {
@@ -24,19 +26,22 @@ public:
         s.test_signing_enabled = check_test_signing();
         s.driver_file_exists = check_driver_file();
         s.driver_already_loaded = check_driver_loaded();
+        s.vulnerable_driver_blocklist_enabled = check_vulnerable_driver_blocklist();
+        s.memory_integrity_enabled            = check_memory_integrity();
         return s;
     }
 
     static void print_status(const SystemStatus& s) {
         printf("\n=== Kernel Driver System Check ===\n");
-        printf("  Admin privileges:    %s\n", s.is_admin ? "YES" : "NO (REQUIRED)");
-        printf("  Secure Boot:         %s\n", s.secure_boot_enabled ? "ON (must disable in BIOS)" : "OFF (good)");
-        printf("  Test Signing:        %s\n", s.test_signing_enabled ? "ENABLED (good)" : "DISABLED (need to enable)");
-        printf("  Driver file:         %s\n", s.driver_file_exists ? "FOUND" : "MISSING");
-        printf("  Driver loaded:       %s\n", s.driver_already_loaded ? "YES" : "NO");
+        printf("  Admin privileges:         %s\n", s.is_admin              ? "YES"              : "NO (REQUIRED)");
+        printf("  Secure Boot:              %s\n", s.secure_boot_enabled   ? "ON (disable BIOS)" : "OFF (good)");
+        printf("  Test Signing:             %s\n", s.test_signing_enabled  ? "ENABLED (good)"   : "DISABLED");
+        printf("  Driver file:              %s\n", s.driver_file_exists    ? "FOUND"             : "MISSING");
+        printf("  Driver loaded:            %s\n", s.driver_already_loaded ? "YES"               : "NO");
+        printf("  Driver Blocklist:         %s\n", s.vulnerable_driver_blocklist_enabled ? "ENABLED (will disable)" : "OFF (good)");
+        printf("  Memory Integrity (HVCI):  %s\n", s.memory_integrity_enabled            ? "ENABLED (will disable)" : "OFF (good)");
         printf("==================================\n\n");
     }
-
     enum SetupResult {
         READY,
         NEED_REBOOT,
@@ -45,6 +50,78 @@ public:
         DRIVER_FILE_MISSING,
         SETUP_FAILED
     };
+
+    static SetupResult setup_kdmapper() {
+        if (!check_admin()) {
+            printf("[-] Must run as Administrator.\n");
+            return NEED_ADMIN;
+        }
+
+        if (!check_file_exists(get_driver_path(true))) {
+            printf("[-] MemReaderKdmp.sys not found.\n");
+            return DRIVER_FILE_MISSING;
+        }
+        if (!check_file_exists(get_kdmapper_path())) {
+            printf("[-] kdmapper.exe not found.\n");
+            return DRIVER_FILE_MISSING;
+        }
+
+        bool need_reboot = false;
+
+        // -- Vulnerable Driver Blocklist --
+        if (check_vulnerable_driver_blocklist()) {
+            printf("[*] Vulnerable Driver Blocklist is enabled. Disabling...\n");
+            if (disable_vulnerable_driver_blocklist()) {
+                printf("[+] Disabled. Reboot required.\n");
+                need_reboot = true;
+            } else {
+                printf("[-] Failed to disable Vulnerable Driver Blocklist.\n");
+                return SETUP_FAILED;
+            }
+        }
+
+        // -- Memory Integrity (HVCI) --
+        if (check_memory_integrity()) {
+            printf("[*] Memory Integrity (HVCI) is enabled. Disabling...\n");
+            if (disable_memory_integrity()) {
+                printf("[+] Disabled. Reboot required.\n");
+                need_reboot = true;
+            } else {
+                printf("[-] Failed to disable Memory Integrity.\n");
+                return SETUP_FAILED;
+            }
+        }
+
+        if (need_reboot) {
+            printf("\n[!] Registry changes applied. A REBOOT is required.\n");
+            printf("    After reboot, run this program again.\n");
+            printf("\n    Reboot now? (y/n): ");
+            char c;
+            scanf_s(" %c", &c, 1);
+            if (c == 'y' || c == 'Y')
+                system("shutdown /r /t 3 /c \"Rebooting to apply kdmapper requirements\"");
+            return NEED_REBOOT;
+        }
+
+        if (ping_driver(true)) {
+            printf("[+] Driver already loaded and responding.\n");
+            return READY;
+        }
+
+        printf("[*] Mapping driver with kdmapper...\n");
+        if (!run_kdmapper())
+            return SETUP_FAILED;
+
+        Sleep(1000);
+
+        if (!ping_driver(true)) {
+            printf("[-] Driver mapped but not responding to ping.\n");
+            return SETUP_FAILED;
+        }
+
+        printf("[+] Driver mapped and responding.\n");
+        return READY;
+    }
 
     static SetupResult setup() {
         SystemStatus s = check_system();
@@ -222,6 +299,132 @@ public:
     }
 
 private:
+    static bool run_kdmapper() {
+        std::wstring cmd = L"\"" + get_kdmapper_path() + L"\" \""
+                         + get_driver_path(true) + L"\"";
+
+        STARTUPINFOW si{};
+        PROCESS_INFORMATION pi{};
+        si.cb = sizeof(si);
+
+        if (!CreateProcessW(
+                nullptr,
+                const_cast<LPWSTR>(cmd.c_str()),
+                nullptr, nullptr,
+                FALSE,
+                CREATE_NO_WINDOW,   // silent
+                nullptr, nullptr,
+                &si, &pi))
+        {
+            printf("[-] CreateProcess(kdmapper) failed: %lu\n", GetLastError());
+            return false;
+        }
+
+        // Wait for kdmapper to finish (it exits once DriverEntry returns)
+        WaitForSingleObject(pi.hProcess, 10000);  // 10s timeout
+
+        DWORD exit_code = 1;
+        GetExitCodeProcess(pi.hProcess, &exit_code);
+
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+
+        if (exit_code != 0) {
+            printf("[-] kdmapper exited with code: %lu\n", exit_code);
+            return false;
+        }
+
+        return true;
+    }
+
+    static bool check_file_exists(const std::wstring& path) {
+        return std::filesystem::exists(path);
+    }
+
+    static std::wstring get_kdmapper_path() {
+        wchar_t exe_path[MAX_PATH];
+        GetModuleFileNameW(nullptr, exe_path, MAX_PATH);
+        std::wstring path(exe_path);
+        size_t last_slash = path.find_last_of(L"\\/");
+        if (last_slash != std::wstring::npos)
+            path = path.substr(0, last_slash + 1);
+        path += L"kdmapper.exe";
+        return path;
+    }
+
+    // ================================================================
+    // Vulnerable Driver Blocklist check
+    // ================================================================
+    static bool check_vulnerable_driver_blocklist() {
+        HKEY hKey = nullptr;
+        LONG result = RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\CI\\Config",
+            0, KEY_READ, &hKey
+        );
+        if (result != ERROR_SUCCESS) return false; // key absent = blocklist not active
+
+        DWORD value = 1; // assume enabled if key exists but value missing
+        DWORD size = sizeof(value);
+        RegQueryValueExW(hKey, L"VulnerableDriverBlocklistEnable",
+                         nullptr, nullptr, (LPBYTE)&value, &size);
+        RegCloseKey(hKey);
+        return value == 1;
+    }
+
+    static bool disable_vulnerable_driver_blocklist() {
+        HKEY hKey = nullptr;
+        LONG result = RegCreateKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\CI\\Config",
+            0, nullptr, 0, KEY_SET_VALUE, nullptr, &hKey, nullptr
+        );
+        if (result != ERROR_SUCCESS) return false;
+
+        DWORD value = 0;
+        result = RegSetValueExW(hKey, L"VulnerableDriverBlocklistEnable",
+                                0, REG_DWORD, (LPBYTE)&value, sizeof(value));
+        RegCloseKey(hKey);
+        return result == ERROR_SUCCESS;
+    }
+
+    // ================================================================
+    // Memory Integrity (HVCI) check
+    // ================================================================
+    static bool check_memory_integrity() {
+        HKEY hKey = nullptr;
+        LONG result = RegOpenKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\"
+            L"Scenarios\\HypervisorEnforcedCodeIntegrity",
+            0, KEY_READ, &hKey
+        );
+        if (result != ERROR_SUCCESS) return false; // key absent = not enabled
+
+        DWORD value = 0;
+        DWORD size = sizeof(value);
+        RegQueryValueExW(hKey, L"Enabled",
+                         nullptr, nullptr, (LPBYTE)&value, &size);
+        RegCloseKey(hKey);
+        return value == 1;
+    }
+
+    static bool disable_memory_integrity() {
+        HKEY hKey = nullptr;
+        LONG result = RegCreateKeyExW(
+            HKEY_LOCAL_MACHINE,
+            L"SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\"
+            L"Scenarios\\HypervisorEnforcedCodeIntegrity",
+            0, nullptr, 0, KEY_SET_VALUE, nullptr, &hKey, nullptr
+        );
+        if (result != ERROR_SUCCESS) return false;
+
+        DWORD value = 0;
+        result = RegSetValueExW(hKey, L"Enabled",
+                                0, REG_DWORD, (LPBYTE)&value, sizeof(value));
+        RegCloseKey(hKey);
+        return result == ERROR_SUCCESS;
+    }
 
     // ================================================================
     // FIXED: Secure Boot check using registry
@@ -273,16 +476,6 @@ private:
     // FIXED: Test signing check using registry (not bcdedit parsing)
     // ================================================================
     static bool check_test_signing() {
-        // Primary method: Check BCD registry directly
-        // This avoids all the bcdedit output parsing issues
-        //
-        // The BCD store lives at:
-        //   HKLM\BCD00000000\Objects\{current}\Elements\16000049
-        //   where 16000049 = BcdOSLoaderBoolean_AllowPrereleaseSignatures
-        //
-        // But this is complex. Simpler: just try to parse bcdedit
-        // output carefully, or check the system code integrity status.
-
         // Method: Use NtQuerySystemInformation with SystemCodeIntegrityInformation
         // This tells us the ACTUAL runtime enforcement state
 
@@ -432,42 +625,32 @@ private:
         return found;
     }
 
-    static bool ping_driver() {
+    static bool ping_driver(bool kdmapper = false) {
         HANDLE h = CreateFileW(
-            DRIVER_USER_PATH,
+            kdmapper ? KDMP_USER_PATH : DRIVER_USER_PATH,
             GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr, OPEN_EXISTING, 0, nullptr
         );
-
         if (h == INVALID_HANDLE_VALUE) return false;
 
         PING_RESPONSE resp{};
         DWORD returned = 0;
-
-        BOOL ok = DeviceIoControl(
-            h, IOCTL_PING,
-            nullptr, 0,
-            &resp, sizeof(resp),
-            &returned, nullptr
-        );
-
+        BOOL ok = DeviceIoControl(h, IOCTL_PING,
+            nullptr, 0, &resp, sizeof(resp), &returned, nullptr);
         CloseHandle(h);
-
         return ok && returned == sizeof(PING_RESPONSE)
                   && resp.magic == PING_MAGIC;
     }
 
-    static std::wstring get_driver_path() {
+    static std::wstring get_driver_path(bool kdmapper = false) {
         wchar_t exe_path[MAX_PATH];
         GetModuleFileNameW(nullptr, exe_path, MAX_PATH);
-
         std::wstring path(exe_path);
         size_t last_slash = path.find_last_of(L"\\/");
-        if (last_slash != std::wstring::npos) {
+        if (last_slash != std::wstring::npos)
             path = path.substr(0, last_slash + 1);
-        }
-        path += DRIVER_FILE_NAME;
+        path += kdmapper ? KDMP_FILE_NAME : DRIVER_FILE_NAME;
         return path;
     }
 };

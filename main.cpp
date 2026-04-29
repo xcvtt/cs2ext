@@ -74,17 +74,19 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
 }
 
 enum MemoryBackend {
-    WinApi = 0,
-    IndirectSyscall = 1,
-    KernelDriver = 2,
+    WinApi = 1,
+    IndirectSyscall = 2,
+    KernelDriver = 3,
+    KernelKdmapper  = 4,
 };
 
 std::unique_ptr<IMemory> CreateMemoryBackend(MemoryBackend backend) {
     switch (backend) {
-    case WinApi:          return std::make_unique<MemoryWinApi>();
-    case IndirectSyscall: return std::make_unique<MemorySyscall>();
-    case KernelDriver:    return std::make_unique<MemoryDriver>();
-    default:              throw std::runtime_error("invalid backend");
+        case WinApi:           return std::make_unique<MemoryWinApi>();
+        case IndirectSyscall:  return std::make_unique<MemorySyscall>();
+        case KernelDriver:     return std::make_unique<MemoryDriver>();
+        case KernelKdmapper:   return std::make_unique<MemoryDriver>(true);
+        default:               throw std::runtime_error("invalid backend");
     }
 }
 
@@ -109,20 +111,21 @@ int main() {
 
     while (g_settings.memory_backend == -1) {
         printf("\nChoose memory reading backend:\n");
-        printf("  0. User-space (WinAPI)               - simplest, works everywhere\n");
-        printf("  1. User-space (indirect syscalls)    - slightly stealthier\n");
-        printf("  2. Kernel-space driver (IOCTL)       - requires admin + setup\n");
+        printf("  1. User-space (WinAPI)               - simplest, works everywhere\n");
+        printf("  2. User-space (indirect syscalls)    - slightly stealthier\n");
+        printf("  3. Kernel-space driver (IOCTL)       - requires admin + setup\n");
+        printf("  4. Kernel-space driver (kdmapper)    - less setup, manual map, works with secure boot\n");
         printf("\n> ");
 
         int backend = -1;
         scanf_s("%d", &backend);
-        if (backend < 0 || backend > 2) {
+        if (backend < 1 || backend > 4) {
             printf("Invalid choice: %d\n", backend);
             continue;
         }
 
         // If kernel driver, warn user about requirements
-        if (backend == 2) {
+        if (backend == 3) {
             printf("\n");
             printf("=== Kernel Driver Requirements ===\n");
             printf("  - Run as Administrator\n");
@@ -141,6 +144,24 @@ int main() {
                 continue;
             }
         }
+
+        if (backend == 4) {
+            printf("\n");
+            printf("=== kdmapper Requirements ===\n");
+            printf("  - Run as Administrator\n");
+            printf("  - MemReaderKdmp.sys AND kdmapper.exe must be next to this .exe\n");
+            printf("  - Needs to disable Core Isolation & Vulnerable Driver Blocklist\n");
+            printf("\n  Driver is mapped directly into kernel memory.\n");
+            printf("  It will stay loaded until you restart your PC.\n");
+            printf("\n  Continue? (y/n): ");
+            char c;
+            scanf_s(" %c", &c, 1);
+            if (c != 'y' && c != 'Y') {
+                printf("Cancelled.\n");
+                continue;
+            }
+        }
+
 
         g_settings.memory_backend = backend;
     }

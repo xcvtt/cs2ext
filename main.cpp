@@ -76,8 +76,7 @@ static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ex) {
 enum MemoryBackend {
     WinApi = 1,
     IndirectSyscall = 2,
-    KernelDriver = 3,
-    KernelKdmapper  = 4,
+    KernelDriver = 3
 };
 
 std::unique_ptr<IMemory> CreateMemoryBackend(MemoryBackend backend) {
@@ -85,7 +84,6 @@ std::unique_ptr<IMemory> CreateMemoryBackend(MemoryBackend backend) {
         case WinApi:           return std::make_unique<MemoryWinApi>();
         case IndirectSyscall:  return std::make_unique<MemorySyscall>();
         case KernelDriver:     return std::make_unique<MemoryDriver>();
-        case KernelKdmapper:   return std::make_unique<MemoryDriver>(true);
         default:               throw std::runtime_error("invalid backend");
     }
 }
@@ -113,41 +111,19 @@ int main() {
         printf("\nChoose memory reading backend:\n");
         printf("  1. User-space (WinAPI)               - simplest, works everywhere\n");
         printf("  2. User-space (indirect syscalls)    - slightly stealthier\n");
-        printf("  3. Kernel-space driver (IOCTL)       - requires admin + setup\n");
-        printf("  4. Kernel-space driver (kdmapper)    - less setup, manual map, works with secure boot\n");
+        printf("  3. Kernel driver kdmapper (IOCTL)    - requires admin + setup\n");
         printf("\n> ");
 
         int backend = -1;
         scanf_s("%d", &backend);
-        if (backend < 1 || backend > 4) {
+        if (backend < 1 || backend > 3) {
             printf("Invalid choice: %d\n", backend);
             continue;
         }
 
-        // If kernel driver, warn user about requirements
         if (backend == 3) {
             printf("\n");
-            printf("=== Kernel Driver Requirements ===\n");
-            printf("  - Run as Administrator\n");
-            printf("  - Secure Boot DISABLED in BIOS\n");
-            printf("  - Test signing will be enabled (requires reboot on first use)\n");
-            printf("  - 'Test Mode' watermark will appear on desktop\n");
-            printf("  - MemReader.sys must be next to this .exe\n");
-            printf("\n  The driver will be automatically loaded and unloaded.\n");
-            printf("  No permanent changes besides test signing.\n");
-            printf("\n  Continue? (y/n): ");
-
-            char c;
-            scanf_s(" %c", &c, 1);
-            if (c != 'y' && c != 'Y') {
-                printf("Cancelled. Choose another backend.\n");
-                continue;
-            }
-        }
-
-        if (backend == 4) {
-            printf("\n");
-            printf("=== kdmapper Requirements ===\n");
+            printf("=== Kernel driver /w kdmapper Requirements ===\n");
             printf("  - Run as Administrator\n");
             printf("  - MemReaderKdmp.sys AND kdmapper.exe must be next to this .exe\n");
             printf("  - Needs to disable Core Isolation & Vulnerable Driver Blocklist\n");

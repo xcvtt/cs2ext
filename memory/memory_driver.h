@@ -12,7 +12,7 @@
 
 class MemoryDriver : public IMemory {
 public:
-    explicit MemoryDriver(bool use_kdmapper = false)
+    explicit MemoryDriver(bool use_kdmapper = true)
         : m_use_kdmapper(use_kdmapper) {}
 
     ~MemoryDriver() override {

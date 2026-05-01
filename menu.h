@@ -96,11 +96,11 @@ private:
 
         static bool backend_changed = false;
 
-        backend_changed |= ImGui::RadioButton("WinApi", &g_settings.memory_backend, 0);
+        backend_changed |= ImGui::RadioButton("WinApi", &g_settings.memory_backend, 1);
         ImGui::SameLine();
-        backend_changed |= ImGui::RadioButton("Syscall", &g_settings.memory_backend, 1);
+        backend_changed |= ImGui::RadioButton("Syscall", &g_settings.memory_backend, 2);
         ImGui::SameLine();
-        backend_changed |= ImGui::RadioButton("Kernel", &g_settings.memory_backend, 2);
+        backend_changed |= ImGui::RadioButton("Kernel", &g_settings.memory_backend, 3);
 
         if (backend_changed)
             ImGui::TextColored(ImVec4(1,0.4f,0.2f,1), "Restart required to apply");
